@@ -379,3 +379,54 @@ try:
     _sync_github()
 except Exception as e:
     print(f"GitHub sync failed: {e}", file=sys.stderr)
+
+# ── Telegram preview refresh ──────────────────────────────────────
+TG_BOT       = os.environ.get("TELEGRAM_BOT_TOKEN")
+TG_CHAT      = "@potap_attic"
+TG_POST_FILE = os.path.join(_CLAUDE, ".tg_post_id")
+LONGREAD_URL = "https://telegra.ph/Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01"
+TG_TEXT = (
+    "🗂 <b>potap-claude-setup — моя настройка Claude Code на GitHub</b>\n\n"
+    "Выложил весь стек кастомизаций: правила, шаблоны, hookify-хуки, "
+    "скрипт авто-обновления лонгрида.\n\n"
+    "Лонгрид обновляется автоматически — актуальное состояние системы всегда там.\n\n"
+    '<a href="https://github.com/elementalmasterpotap/potap-claude-setup">GitHub →</a>'
+    "  ·  "
+    f'<a href="{LONGREAD_URL}">Лонгрид →</a>'
+)
+
+def _tg_api(method, payload):
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{TG_BOT}/{method}",
+        data=data, headers={"Content-Type": "application/json"}
+    )
+    return json.loads(urllib.request.urlopen(req).read())
+
+def _refresh_tg_post():
+    if not TG_BOT:
+        return
+    lp = {"url": LONGREAD_URL, "prefer_large_media": True}
+    post_id = open(TG_POST_FILE).read().strip() if os.path.exists(TG_POST_FILE) else None
+    if post_id:
+        r = _tg_api("editMessageText", {
+            "chat_id": TG_CHAT, "message_id": int(post_id),
+            "text": TG_TEXT, "parse_mode": "HTML", "link_preview_options": lp
+        })
+        if r.get("ok"):
+            print(f"Telegram preview refreshed (message_id: {post_id})")
+            return
+    # Пост не найден — отправить новый
+    r = _tg_api("sendMessage", {
+        "chat_id": TG_CHAT, "text": TG_TEXT,
+        "parse_mode": "HTML", "link_preview_options": lp
+    })
+    if r.get("ok"):
+        new_id = str(r["result"]["message_id"])
+        open(TG_POST_FILE, "w").write(new_id)
+        print(f"Telegram post sent (message_id: {new_id})")
+
+try:
+    _refresh_tg_post()
+except Exception as e:
+    print(f"Telegram refresh failed: {e}", file=sys.stderr)
