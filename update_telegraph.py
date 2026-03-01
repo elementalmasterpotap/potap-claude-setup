@@ -248,17 +248,20 @@ content = [
         "Интеграция:\n"
         "  settings.json                 → env.TELEGRAPH_TOKEN (доступен везде)\n"
         "  ~/.claude/rules/telegraph.md  → правила публикации, API, шаблоны нод\n"
-        "  ~/.claude/update_telegraph.py → единый файл для обновления этого лонгрида"
+        "  ~/.claude/update_telegraph.py → единый файл: Telegraph + GitHub + Telegram"
     ]},
     {"tag": "p", "children": [
         "Публикация только через Python (curl ломает кириллицу). "
         "Для ", {"tag": "code", "children": ["editPage"]}, " — тот же подход."
     ]},
     {"tag": "p", "children": [
-        "Этот лонгрид обновляется через ", {"tag": "code", "children": ["update_telegraph.py"]},
-        " — один и тот же файл, всегда editPage. "
-        "Не пересоздаётся с новым именем, не копится пяток версий. "
-        "Только обновляется."
+        "Один запуск ", {"tag": "code", "children": ["update_telegraph.py"]}, " делает три вещи:"
+    ]},
+    {"tag": "pre", "children": [
+        "python3 ~/.claude/update_telegraph.py\n"
+        "  ├── editPage   → Telegraph (контент + дата)\n"
+        "  ├── git push   → GitHub (rules/, CLAUDE.md, templates/)\n"
+        "  └── editMessage → Telegram-пост (рефетч превью + дата)"
     ]},
     {"tag": "hr"},
 
@@ -389,7 +392,8 @@ TG_TEXT = (
     "🗂 <b>potap-claude-setup — моя настройка Claude Code на GitHub</b>\n\n"
     "Выложил весь стек кастомизаций: правила, шаблоны, hookify-хуки, "
     "скрипт авто-обновления лонгрида.\n\n"
-    "Лонгрид обновляется автоматически — актуальное состояние системы всегда там.\n\n"
+    "Лонгрид, GitHub и этот пост обновляются автоматически — "
+    "актуальное состояние системы всегда там.\n\n"
     '<a href="https://github.com/elementalmasterpotap/potap-claude-setup">GitHub →</a>'
     "  ·  "
     f'<a href="{LONGREAD_URL}">Лонгрид →</a>'
