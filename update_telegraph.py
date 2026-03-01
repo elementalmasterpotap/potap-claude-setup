@@ -1,453 +1,38 @@
 """
-Обновление лонгрида про кастомизации Claude.
-Единственный файл — всегда editPage, не пересоздавать.
-Путь: Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01
+Обновление лонгрида про кастомизации Claude + GitHub sync + Telegram refresh.
+
+КОНТЕНТ: telegraph_content.py → get_content(ts)  ← редактировать только его
+МЕХАНИКА: этот файл                               ← редактировать только для API/логики
+
+Путь лонгрида: Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01
 """
 import urllib.request, json, os, sys, subprocess, shutil, re
 from datetime import datetime, timezone, timedelta
+
+# ── Импорт контента ───────────────────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from telegraph_content import get_content
 
 TOKEN = os.environ.get("TELEGRAPH_TOKEN")
 if not TOKEN:
     print("Error: TELEGRAPH_TOKEN not set", file=sys.stderr); sys.exit(1)
 
-PATH = "Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01"
-_CLAUDE = os.path.join(os.path.expanduser("~"), ".claude")
+PATH    = "Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01"
+_CLAUDE = os.path.expanduser("~/.claude")
 REPO    = os.path.join(_CLAUDE, "claude-setup")
 
-tz_msk = timezone(timedelta(hours=3))   # Воронеж = МСК = UTC+3
+tz_msk = timezone(timedelta(hours=3))
 now    = datetime.now(tz_msk)
 ts     = now.strftime("%d.%m.%Y %H:%M МСК")
 
-content = [
-    # ── Дата обновления ──────────────────────────────────────────
-    {"tag": "p", "children": [{"tag": "i", "children": [f"Обновлено: {ts}"]}]},
-
-    # ── Предисловие ──────────────────────────────────────────────
-    {"tag": "p", "children": [{"tag": "i", "children": [
-        "Лонгрид обновляется автоматически — каждый раз когда я добавляю или убираю кастомизацию, "
-        "Claude редактирует эту страницу. То что здесь написано = актуальное состояние системы."
-    ]}]},
-    {"tag": "p", "children": [
-        "Накопил приличный стек правил, памяти и плагинов для Claude Code. "
-        "Разбираю как всё это устроено — только механика, без воды."
-    ]},
-
-    # ── Оглавление ───────────────────────────────────────────────
-    {"tag": "pre", "children": [
-        "├─ settings.json ─────── фундамент, разрешения, deny, MCP, хуки\n"
-        "├─ CLAUDE.md ─────────── алгоритм сессии, маршрутизатор\n"
-        "├─ MEMORY.md ─────────── долговременная память\n"
-        "├─ hookify ───────────── block/warn хуки (проектный уровень)\n"
-        "├─ rules/ ────────────── 8 модульных md-правил\n"
-        "├─ agents/ ───────────── кастомные субагенты\n"
-        "├─ Проектный CLAUDE.md ─ контекст репо\n"
-        "└─ GitHub + Telegraph ── инфраструктура автообновления"
-    ]},
-    {"tag": "hr"},
-
-    # ── 1. settings.json ─────────────────────────────────────────
-    {"tag": "h3", "children": ["settings.json — фундамент"]},
-    {"tag": "p", "children": [
-        "Глобальный конфиг Claude Code. Живёт в ", {"tag": "code", "children": ["~/.claude/settings.json"]},
-        ". Определяет что Claude может делать без запроса и что у него подключено."
-    ]},
-    {"tag": "pre", "children": [
-        "settings.json\n"
-        "├── permissions\n"
-        "│   ├── allow       → [Bash(*), Edit(*), Write(*), Read(*), WebSearch, WebFetch(*)]\n"
-        "│   ├── deny        → [~/.ssh/**, ~/.aws/**, ~/.gnupg/**, ~/.kube/**, ~/.npmrc, ...]\n"
-        "│   └── defaultMode → dontAsk  (работает автономно)\n"
-        "├── showTurnDuration      → true  (время каждого turn в конце ответа)\n"
-        "├── statusLine            → scripts/statusline.sh  (git ветка + staged/modified)\n"
-        "├── alwaysThinkingEnabled → true  (extended thinking по умолчанию)\n"
-        "├── mcpServers      → {context7}  (живая документация библиотек)\n"
-        "├── hooks\n"
-        "│   ├── SessionStart [compact] → head CLAUDE.md  (реинжект после компакции)\n"
-        "│   ├── PreCompact   [auto]    → precompact-backup.sh  (бэкап транскрипта)\n"
-        "│   ├── TaskCompleted          → task-gate.sh  (блок если staged не закоммичен)\n"
-        "│   ├── PreToolUse → pretool-safety.py   --no-verify / reset--hard / push-f main / logo assets\n"
-        "│   ├── Stop [1]  → anti-ration.py      отмазки «за рамками / нужен контекст»\n"
-        "│   ├── Stop [2]  → pseudo-check.py     4+ пунктов без псевдографики\n"
-        "│   ├── Stop [3]  → commit-check.py     коммит без type(scope) + Co-Authored\n"
-        "│   ├── Stop [4]  → token-leak-check.py реальный токен в тексте ответа\n"
-        "│   ├── Stop [5]  → tone-check.py       корпоративный тон / подобострастие\n"
-        "│   ├── Stop [6]  → deploy-check.py     деплой без -NoPrompt / --yes\n"
-        "│   ├── Stop [7]  → ps-unicode-check.py PS JSON + кириллица в двойных кавычках\n"
-        "│   ├── Stop [8]  → patchnote-check.py  патчнот без tagline / не от первого лица\n"
-        "│   ├── Stop [9]  → csharp-compat-check.py  C# 6+ синтаксис в csc.exe .NET 4.x коде\n"
-        "│   ├── Stop [10] → github-upload-check.py  api.github.com вместо uploads для ассетов\n"
-        "│   └── Stop [11] → telegraph-edit-check.py createPage лонгрида / curl+кириллица\n"
-        "├── enabledPlugins  → [commit-commands, claude-md-management, hookify, github]\n"
-        "└── env             → {GITHUB_TOKEN, TELEGRAPH_TOKEN, TELEGRAM_BOT_TOKEN}"
-    ]},
-    {"tag": "p", "children": [
-        {"tag": "b", "children": ["deny"]},
-        " — Claude физически не может прочитать ~/.ssh, ~/.aws, ~/.gnupg и другие папки с секретами. "
-        "Не advisory-правило, а hardware block на уровне permissions."
-    ]},
-    {"tag": "p", "children": [
-        {"tag": "b", "children": ["context7"]},
-        " — MCP-сервер, инжектирует актуальную документацию библиотек прямо в контекст. "
-        "Решает галлюцинации по API — Claude видит реальные сигнатуры, а не придумывает их."
-    ]},
-    {"tag": "p", "children": [
-        {"tag": "b", "children": ["Stop hooks (8 штук)"]},
-        " — каждый раз когда Claude заканчивает ответ, все 8 скриптов проверяют текст:"
-    ]},
-    {"tag": "pre", "children": [
-        "PreToolUse:\n"
-        "  pretool-safety.py     → --no-verify, reset --hard, push -f main, rm -rf, logo/assets\n"
-        "\n"
-        "Stop (11 проверок каждого ответа):\n"
-        "  anti-ration.py        → отмазки «за рамками», «нужно контекст», «баг до меня»\n"
-        "  pseudo-check.py       → 4+ пунктов без псевдографики\n"
-        "  commit-check.py       → коммит без type(scope): + Co-Authored Claude + Happy\n"
-        "  token-leak-check.py   → реальный ghp_ / TG / Telegraph токен в тексте\n"
-        "  tone-check.py         → канцелярит и ассистент-подобострастие\n"
-        "  deploy-check.py       → деплой-команда без -NoPrompt / --yes\n"
-        "  ps-unicode-check.py   → PowerShell JSON + кириллица в двойных кавычках\n"
-        "  patchnote-check.py    → патчнот без tagline / не от первого лица\n"
-        "  csharp-compat-check.py → C# 6+ синтаксис в csc.exe .NET 4.x контексте\n"
-        "  github-upload-check.py → api.github.com вместо uploads.github.com для ассетов\n"
-        "  telegraph-edit-check.py → createPage лонгрида / curl + кириллица в Telegraph"
-    ]},
-    {"tag": "p", "children": [
-        "Токены в ", {"tag": "code", "children": ["env"]},
-        " — Claude видит их как переменные окружения в любом проекте."
-    ]},
-    {"tag": "hr"},
-
-    # ── 2. CLAUDE.md глобальный ───────────────────────────────────
-    {"tag": "h3", "children": ["CLAUDE.md — алгоритм сессии"]},
-    {"tag": "p", "children": [
-        "Глобальный ", {"tag": "code", "children": ["~/.claude/CLAUDE.md"]},
-        " — главный файл инструкций. Загружается в каждую сессию."
-    ]},
-    {"tag": "p", "children": [
-        "Главная часть — маршрутизатор: каждый тип задачи направляет Claude к нужному модулю."
-    ]},
-    {"tag": "pre", "children": [
-        "ЗАДАЧА ПОЛУЧЕНА:\n"
-        "  ├── разговор / вопрос       → отвечать напрямую\n"
-        "  ├── GitHub / релиз / API    → github_ops.md\n"
-        "  ├── GitHub оформление       → github_formatting.md\n"
-        "  ├── Telegram / бот / пост   → lessons_universal.md\n"
-        "  ├── Telegraph / статья      → telegraph.md\n"
-        "  ├── деплой / патчнот        → workflow_universal.md\n"
-        "  ├── Windows / C# / PS       → lessons_universal.md + windows_dev.md\n"
-        "  ├── вайбкодинг              → vibe_coding.md\n"
-        "  ├── правило / память        → карта владения → проверить дубли\n"
-        "  └── новый проект            → templates/CLAUDE_BASE.md"
-    ]},
-    {"tag": "p", "children": ["После задачи — автоматические действия:"]},
-    {"tag": "pre", "children": [
-        "ПОСЛЕ ЗАДАЧИ:\n"
-        "  поломка / урок?                    → lessons.md\n"
-        "  новый паттерн?                     → MEMORY.md\n"
-        "  визуальное изменение?              → PATCHNOTES.md\n"
-        "  добавлена/удалена кастомизация?    → сверить лонгрид → update_telegraph.py\n"
-        "  новое правило?                     → карта владения → проверить дубли\n"
-        "  изменён CLAUDE/MEMORY?             → синхронизировать копии\n"
-        "  готово?                            → доказать что работает"
-    ]},
-    {"tag": "p", "children": [
-        "Ещё там: принципы (минимальный импакт, root cause не симптом, не хакать), "
-        "правила коммитов, аудит правил, карта владения — что в каком файле хранится."
-    ]},
-    {"tag": "hr"},
-
-    # ── 3. MEMORY.md ──────────────────────────────────────────────
-    {"tag": "h3", "children": ["MEMORY.md — долговременная память"]},
-    {"tag": "p", "children": [
-        "Claude Code не запоминает ничего между сессиями. MEMORY.md — решение: "
-        "файл читается в начале каждой сессии и активирует контекст."
-    ]},
-    {"tag": "p", "children": [
-        "Живёт в ", {"tag": "code", "children": ["~/.claude/memory/MEMORY.md"]},
-        ". Копия в каждом проекте: ", {"tag": "code", "children": [".claude/universal-memory.md"]}, "."
-    ]},
-    {"tag": "pre", "children": [
-        "Что пишется в MEMORY.md:\n"
-        "  ✓  уникальные паттерны и характер пользователя\n"
-        "  ✓  долгосрочные факты из практики: решения, поломки, инсайты\n"
-        "  ✓  новые мемы и локальные отсылки\n"
-        "  ✗  стиль/тон → это в communication.md\n"
-        "  ✗  workflow/деплой → это в CLAUDE.md\n"
-        "  ✗  дубли того что уже есть где-то ещё"
-    ]},
-    {"tag": "p", "children": [
-        "Claude сам ведёт MEMORY.md во время работы — дописывает новые паттерны, "
-        "исправляет устаревшие. Первые строки всегда в контексте, дальше — по необходимости."
-    ]},
-    {"tag": "hr"},
-
-    # ── 4. hookify ────────────────────────────────────────────────
-    {"tag": "h3", "children": ["hookify — система хуков"]},
-    {"tag": "p", "children": [
-        "Плагин hookify добавляет точки перехвата до/после действий Claude. "
-        "Правила в файлах ", {"tag": "code", "children": [".claude/hookify.*.local.md"]},
-        " в папке проекта."
-    ]},
-    {"tag": "pre", "children": [
-        "4 типа событий:\n"
-        "  UserPromptSubmit → при получении сообщения от пользователя\n"
-        "  PreToolUse       → перед вызовом инструмента (Edit, Bash, Write...)\n"
-        "  PostToolUse      → после вызова инструмента\n"
-        "  Stop             → перед завершением ответа"
-    ]},
-    {"tag": "p", "children": ["Каждое правило — отдельный md-файл с YAML-шапкой:"]},
-    {"tag": "pre", "children": [
-        "---\n"
-        "name:         no-rm-rf\n"
-        "enabled:      true\n"
-        "event:        bash          # bash или file\n"
-        "action:       block         # block или warn\n"
-        "pattern:      rm\\s+(-rf|-fr)  # regex для bash\n"
-        "---\n"
-        "⛔ rm -rf — необратимое удаление. Заблокировано."
-    ]},
-    {"tag": "p", "children": ["Текущие глобальные правила:"]},
-    {"tag": "pre", "children": [
-        "BLOCK — запрещено без исключений:\n"
-        "  rm -rf / rm -fr            необратимое удаление файлов\n"
-        "  git push --force main      затирание истории на main/master\n"
-        "  редактирование logo/       ассеты заморожены\n"
-        "  редактирование assets/     ассеты заморожены\n"
-        "\n"
-        "WARN — требует осознанного решения:\n"
-        "  --no-verify                скип pre-commit хуков\n"
-        "  git reset --hard           деструктивная git-операция\n"
-        "  git checkout -- .          деструктивная git-операция\n"
-        "  git restore .              деструктивная git-операция\n"
-        "  git clean -f               деструктивная git-операция\n"
-        "  CI / infra / *.yml         изменения требуют подтверждения"
-    ]},
-    {"tag": "p", "children": [
-        "Шаблоны для новых проектов — ",
-        {"tag": "code", "children": ["templates/hookify/"]},
-        " (6 файлов, скопировать в ", {"tag": "code", "children": [".claude/"]},
-        " нового проекта). К глобальным правилам добавляются проектно-специфичные — "
-        "например запрет менять конкретную функцию в конкретном файле."
-    ]},
-    {"tag": "hr"},
-
-    # ── 5. Модульные md-файлы ─────────────────────────────────────
-    {"tag": "h3", "children": ["rules/ — модульные md-файлы"]},
-    {"tag": "p", "children": [
-        "CLAUDE.md держится коротким (<150 строк). Детали выносятся в модули ",
-        {"tag": "code", "children": ["~/.claude/rules/"]},
-        ". Claude читает нужный только когда задача попадает в его домен."
-    ]},
-    {"tag": "pre", "children": [
-        "~/.claude/rules/\n"
-        "├── communication.md         стиль/тон/мемы — БЛОКЕР, читать до первого ответа\n"
-        "├── workflow_universal.md    патч → деплой → патчнот → коммит\n"
-        "├── github_ops.md            GitHub API через PowerShell без gh CLI\n"
-        "├── github_formatting.md     README, бейджи, topics, чеклист репо\n"
-        "├── telegraph.md             публикация на Telegraph, editPage\n"
-        "├── windows_dev.md           PS installer, C# WinForms тёмная тема\n"
-        "├── vibe_coding.md           вайбкодинг — концепция и маппинг\n"
-        "└── lessons_universal.md     ловушки: PS / C# / Telegram / GitHub"
-    ]},
-    {"tag": "p", "children": [
-        {"tag": "b", "children": ["communication.md"]},
-        " — единственный модуль с флагом БЛОКЕР. Без него Claude не знает как разговаривать: "
-        "стиль, тон, отсылки, мемы. Читается первым делом в каждой сессии. "
-        "Псевдографика (таблицы, ASCII-деревья, box-drawing) — дефолтный режим: "
-        "любое перечисление 4+ пунктов → таблица/дерево. Stop hook pseudo-check.py блокирует нарушения."
-    ]},
-    {"tag": "p", "children": [
-        {"tag": "b", "children": ["github_ops.md"]},
-        " — весь GitHub через PowerShell + Invoke-RestMethod. Ни одного gh CLI. "
-        "Создание репо, релизы, загрузка ассетов, кириллица через \\uXXXX."
-    ]},
-    {"tag": "p", "children": [
-        {"tag": "b", "children": ["lessons_universal.md"]},
-        " — накопленные ловушки из практики: PS ConvertTo-Json двойное экранирование, "
-        "csc.exe C# 5 ограничения, Telegram Bot API лимиты, GitHub upload endpoint."
-    ]},
-    {"tag": "p", "children": [
-        {"tag": "b", "children": ["vibe_coding.md"]},
-        " — концепция: говоришь на человеческом языке что хочешь увидеть, "
-        "Claude находит нужные параметры и меняет, ты смотришь результат. "
-        "Шаблон-заготовка для любого проекта с настраиваемым выходом."
-    ]},
-    {"tag": "hr"},
-
-    # ── 6. Subagents ──────────────────────────────────────────────
-    {"tag": "h3", "children": ["agents/ — кастомные субагенты"]},
-    {"tag": "p", "children": [
-        "Субагенты живут в ", {"tag": "code", "children": ["~/.claude/agents/"]},
-        " (глобально) или в ", {"tag": "code", "children": [".claude/agents/"]},
-        " (проектно). Каждый — md-файл с YAML-шапкой: модель, инструменты, системный промпт."
-    ]},
-    {"tag": "pre", "children": [
-        "~/.claude/agents/\n"
-        "├── code-reviewer.md\n"
-        "│     model:  claude-haiku\n"
-        "│     tools:  Read, Glob, Grep  (только чтение)\n"
-        "│     output: 🔴 КРИТИЧНО / 🟡 ВНИМАНИЕ / 🟢 МЕЛОЧЬ\n"
-        "└── shader-expert.md\n"
-        "      model:  claude-haiku\n"
-        "      tools:  Read, Glob, Grep\n"
-        "      знает:  ps_3_0 бюджет, детектор, что нельзя трогать\n"
-        "      output: Диагноз / Причина / Риск для детектора"
-    ]},
-    {"tag": "p", "children": [
-        "Субагент изолирован — работает в отдельном контексте, не засоряет main context. "
-        "Haiku дешевле Sonnet в 10–20 раз, для code review этого хватает."
-    ]},
-    {"tag": "hr"},
-
-    # ── 7. Проектный CLAUDE.md ────────────────────────────────────
-    {"tag": "h3", "children": ["Проектный CLAUDE.md — контекст репо"]},
-    {"tag": "p", "children": [
-        "Помимо глобального, в каждом репозитории есть свой CLAUDE.md. "
-        "Добавляет специфику: архитектуру, активные файлы, что нельзя трогать, команды деплоя."
-    ]},
-    {"tag": "pre", "children": [
-        "Типичное содержимое:\n"
-        "  ├── что за проект (1-2 строки)\n"
-        "  ├── активный файл / точка входа\n"
-        "  ├── критические правила (что ЗАПРЕЩЕНО)\n"
-        "  ├── команда деплоя одной строкой\n"
-        "  ├── команды отката (prev / backup)\n"
-        "  └── метафоры проекта"
-    ]},
-    {"tag": "p", "children": [
-        "Дополнительно — проектные правила в ", {"tag": "code", "children": [".claude/rules/"]},
-        ": тот же принцип что глобальные модули, только специфика одного репо. "
-        "Плюс проектные hookify-правила поверх глобальных."
-    ]},
-    {"tag": "hr"},
-
-    # ── 7. GitHub + Telegraph ─────────────────────────────────────
-    {"tag": "h3", "children": ["GitHub + Telegraph — инфраструктура автообновления"]},
-    {"tag": "p", "children": [
-        "Вся система лежит на GitHub и обновляется автоматически при каждом изменении кастомизаций:"
-    ]},
-    {"tag": "p", "children": [{"tag": "a",
-        "href": "https://github.com/elementalmasterpotap/potap-claude-setup",
-        "children": ["github.com/elementalmasterpotap/potap-claude-setup"]
-    }]},
-    {"tag": "pre", "children": [
-        "claude-setup/\n"
-        "├── CLAUDE.md                  глобальный алгоритм сессии\n"
-        "├── update_telegraph.py        скрипт обновления этого лонгрида\n"
-        "├── rules/                     8 модульных md-файлов\n"
-        "├── agents/                    субагенты: code-reviewer, shader-expert\n"
-        "├── scripts/                   хуки: 1 PreToolUse + 11 Stop hooks\n"
-        "├── skills/                    11 пользовательских скиллов\n"
-        "│   ├── /patchnote             написать патчнот по формату\n"
-        "│   ├── /gh-setup              оформить репо по чеклисту\n"
-        "│   ├── /vibe                  вайбкодинг по описанию\n"
-        "│   ├── /sync                  синхронизировать кастомизации\n"
-        "│   ├── /lessons               таблица всех уроков из практики\n"
-        "│   ├── /hooks-status          аудит хуков vs правила\n"
-        "│   ├── /telegraph-post        создать/обновить Telegraph статью\n"
-        "│   ├── ps-cookbook            [авто] PowerShell паттерны\n"
-        "│   ├── csharp-cookbook        [авто] C# 5 паттерны и ограничения\n"
-        "│   ├── gh-ops-ref             [авто] GitHub API через PS\n"
-        "│   └── tg-ref                 [авто] Telegram Bot API\n"
-        "└── templates/\n"
-        "    ├── CLAUDE_BASE.md  MEMORY_TEMPLATE.md  и др.\n"
-        "    └── hookify/        6 шаблонов хуков"
-    ]},
-    {"tag": "p", "children": [
-        "Telegraph нужен для длинных публикаций с форматированием — "
-        "Telegram Bot API обрезает на 4096 символах, Telegraph нет. "
-        "Один запуск ", {"tag": "code", "children": ["update_telegraph.py"]}, " делает три вещи:"
-    ]},
-    {"tag": "pre", "children": [
-        "python3 ~/.claude/update_telegraph.py\n"
-        "  ├── editPage    → Telegraph (контент + дата)\n"
-        "  ├── git push    → GitHub (rules/, CLAUDE.md, templates/)\n"
-        "  └── editMessage → Telegram-пост (рефетч превью + дата)"
-    ]},
-    {"tag": "hr"},
-
-    # ── Skills ────────────────────────────────────────────────────
-    {"tag": "h3", "children": ["skills/ — пользовательские команды"]},
-    {"tag": "p", "children": [
-        "Скиллы — slash-команды и фоновые знания. Живут в ",
-        {"tag": "code", "children": ["~/.claude/skills/<name>/SKILL.md"]},
-        ". Вызывать командой ",
-        {"tag": "code", "children": ["/skill-name"]},
-        " или Claude подгружает автоматически когда тема релевантна."
-    ]},
-    {"tag": "pre", "children": [
-        "Action-скиллы (вызывать явно /командой):\n"
-        "  /patchnote [vX.X.X]     написать патчнот по workflow_universal.md формату\n"
-        "  /gh-setup  [owner/repo]  оформить репо по чеклисту github_formatting.md\n"
-        "  /vibe      [описание]    вайбкодинг — изменить параметры по желаемому результату\n"
-        "  /sync                    обновить Telegraph + GitHub + Telegram одной командой\n"
-        "  /lessons                 таблица всех уроков PS/C#/TG/GH из практики\n"
-        "  /hooks-status            аудит: какие правила захукированы, какие нет\n"
-        "  /telegraph-post [URL]    создать или обновить Telegraph статью\n"
-        "\n"
-        "Knowledge-скиллы (Claude подгружает сам когда задача подходит):\n"
-        "  ps-cookbook      PowerShell: PS-1/PS-2/PS-3 ловушки, upload endpoint\n"
-        "  csharp-cookbook  C# 5: expression-bodied, auto-init, $\"\", nameof — что не работает\n"
-        "  gh-ops-ref       GitHub API: релизы, ассеты, topics, кириллица через \\uXXXX\n"
-        "  tg-ref           Telegram: лимиты, sendPhoto vs sendMessage, parse_mode"
-    ]},
-    {"tag": "hr"},
-
-    # ── Итог ─────────────────────────────────────────────────────
-    {"tag": "h3", "children": ["Итог — компоненты системы"]},
-    {"tag": "pre", "children": [
-        "Компонент              Файл                             Что делает\n"
-        "──────────────────────────────────────────────────────────────────────\n"
-        "Фундамент              settings.json                    разрешения, deny, MCP, хуки\n"
-        "Мозг сессии            ~/.claude/CLAUDE.md              алгоритм, принципы, маршрутизатор\n"
-        "Память                 memory/MEMORY.md                 факты между сессиями\n"
-        "Безопасность           deny rules + Stop hook           кредсы недоступны, отмазки блокируются\n"
-        "Псевдографика          pseudo-check.py                  блок 4+ списков без псевдографики\n"
-        "Коммит-формат          commit-check.py                  type(scope) + Co-Authored обязательны\n"
-        "Токены в ответе        token-leak-check.py              блок реальных секретов в тексте\n"
-        "Тон общения            tone-check.py                    блок канцелярита и подобострастия\n"
-        "Деплой флаги           deploy-check.py                  warn без -NoPrompt / --yes\n"
-        "PS Unicode             ps-unicode-check.py              блок JSON + кириллица в двойных кавычках\n"
-        "Патчнот формат         patchnote-check.py               tagline + первое лицо обязательны\n"
-        "C# 5 совместимость     csharp-compat-check.py           warn C# 6+ синтаксис в .NET 4.x коде\n"
-        "GitHub upload endpoint github-upload-check.py           warn api.github вместо uploads.github\n"
-        "Telegraph editPage     telegraph-edit-check.py          блок createPage / curl + кириллица\n"
-        "PreToolUse safety      pretool-safety.py                --no-verify/reset--hard/push-f/rm-rf/logo\n"
-        "Живая документация     mcpServers.context7              актуальные API без галлюцинаций\n"
-        "Ревью кода             agents/code-reviewer.md          haiku, только чтение, быстро\n"
-        "HLSL диагностика       agents/shader-expert.md          анализ шейдера, детектор, бюджет\n"
-        "Compact реинжект       hooks.SessionStart[compact]      критические правила после сжатия\n"
-        "Pre-compact бэкап      hooks.PreCompact + backup.sh     транскрипт до сжатия\n"
-        "Task gate              hooks.TaskCompleted + gate.sh    блок 'готово' без коммита\n"
-        "Статусбар              statusLine + statusline.sh       git ветка + diff в нижней строке\n"
-        "Enforcement            hookify.*.local.md               block/warn хуки\n"
-        "Skills (7 action)      skills/patchnote,gh-setup,...   /команды для workflow\n"
-        "Skills (4 knowledge)   skills/ps-cookbook,tg-ref,...   авто-подгрузка справки\n"
-        "Стиль / тон            rules/communication.md           как разговаривать\n"
-        "GitHub без gh CLI      rules/github_ops.md              API через PowerShell\n"
-        "GitHub оформление      rules/github_formatting.md       README, бейджи, чеклист\n"
-        "Telegram посты         rules/lessons_universal.md       TG-лимиты, Bot API\n"
-        "Telegraph публикации   rules/telegraph.md               лонгриды, editPage\n"
-        "Патчнот → Telegraph    scripts/publish-patchnote.py     отдельная страница на патчнот\n"
-        "Windows / C# / PS      rules/windows_dev.md             installer, WinForms\n"
-        "Вайбкодинг             rules/vibe_coding.md             человеческий язык → параметры\n"
-        "Ловушки / антипат.     rules/lessons_universal.md       баги из практики\n"
-        "Проектный контекст     .claude/CLAUDE.md                специфика репо"
-    ]},
-    {"tag": "p", "children": [
-        "Всё это — не разовая настройка. Живая система: каждая сессия дополняет правила, "
-        "каждая поломка уходит в ", {"tag": "code", "children": ["lessons.md"]},
-        ", каждый паттерн — в MEMORY.md."
-    ]},
-]
-
+# ── Telegraph editPage ────────────────────────────────────────────────────────
 data = json.dumps({
     "access_token": TOKEN,
     "path": PATH,
     "title": "Как я кастомизирую Claude: правила, память и модули",
     "author_name": "Potap",
     "author_url": "https://t.me/potap_attic",
-    "content": content,
+    "content": get_content(ts),
     "return_content": False
 }).encode("utf-8")
 
@@ -459,73 +44,61 @@ req = urllib.request.Request(
 result = json.loads(urllib.request.urlopen(req).read())
 print(result["result"]["url"])
 
-# ── GitHub sync ───────────────────────────────────────────────────
+# ── GitHub sync ───────────────────────────────────────────────────────────────
+def _copy_dir(src, dst, *, file_filter=None):
+    """Рекурсивно копирует директорию src → dst.
+    file_filter(filename) → (content | None): если None — пропустить/не писать.
+    """
+    os.makedirs(dst, exist_ok=True)
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            _copy_dir(s, d, file_filter=file_filter)
+        elif os.path.isfile(s):
+            if file_filter:
+                content = file_filter(item, s)
+                if content is not None:
+                    open(d, "w", encoding="utf-8").write(content)
+            else:
+                shutil.copy(s, d)
+
+
+def _rules_filter(filename, filepath):
+    """Фильтр для rules/: из telegraph.md убирает Auth-ссылку и хардкод токена."""
+    text = open(filepath, encoding="utf-8").read()
+    if filename == "telegraph.md":
+        text = re.sub(r'.*Auth \(войти в браузере\).*\n', '', text)
+        text = re.sub(r'TOKEN = "[^"]{10,}"', 'TOKEN = os.environ["TELEGRAPH_TOKEN"]', text)
+    return text
+
+
 def _sync_github():
-    rules_src  = os.path.join(_CLAUDE, "rules")
-    tpl_src    = os.path.join(_CLAUDE, "templates")
-    claude_src = os.path.join(_CLAUDE, "CLAUDE.md")
+    # Директории с простым рекурсивным копированием
+    for dirname in ("agents", "skills", "scripts", "templates"):
+        src = os.path.join(_CLAUDE, dirname)
+        dst = os.path.join(REPO, dirname)
+        if os.path.isdir(src):
+            _copy_dir(src, dst)
 
-    shutil.copy(os.path.abspath(__file__), os.path.join(REPO, "update_telegraph.py"))
-    shutil.copy(claude_src, os.path.join(REPO, "CLAUDE.md"))
+    # rules/ — с фильтрацией секретов
+    _copy_dir(
+        os.path.join(_CLAUDE, "rules"),
+        os.path.join(REPO, "rules"),
+        file_filter=_rules_filter
+    )
 
-    for f in os.listdir(rules_src):
-        src, dst = os.path.join(rules_src, f), os.path.join(REPO, "rules", f)
-        if f == "telegraph.md":
-            txt = re.sub(r'.*Auth \(войти в браузере\).*\n', '', open(src).read())
-            txt = re.sub(r'TOKEN = "[^"]{10,}"', 'TOKEN = os.environ["TELEGRAPH_TOKEN"]', txt)
-            open(dst, 'w', encoding='utf-8').write(txt)
-        else:
-            shutil.copy(src, dst)
+    # Отдельные файлы верхнего уровня
+    for filename in ("CLAUDE.md", "update_telegraph.py", "telegraph_content.py"):
+        src = os.path.join(_CLAUDE, filename)
+        if os.path.isfile(src):
+            shutil.copy(src, os.path.join(REPO, filename))
 
-    # ── Skills ────────────────────────────────────────────────────
-    skills_src = os.path.join(_CLAUDE, "skills")
-    skills_dst = os.path.join(REPO, "skills")
-    if os.path.isdir(skills_src):
-        os.makedirs(skills_dst, exist_ok=True)
-        for skill in os.listdir(skills_src):
-            sp = os.path.join(skills_src, skill)
-            dp = os.path.join(skills_dst, skill)
-            if os.path.isdir(sp):
-                os.makedirs(dp, exist_ok=True)
-                for f in os.listdir(sp):
-                    p = os.path.join(sp, f)
-                    if os.path.isfile(p):
-                        shutil.copy(p, os.path.join(dp, f))
-
-    for f in os.listdir(tpl_src):
-        p = os.path.join(tpl_src, f)
-        if os.path.isfile(p):
-            shutil.copy(p, os.path.join(REPO, "templates", f))
-    hk = os.path.join(tpl_src, "hookify")
-    if os.path.isdir(hk):
-        for f in os.listdir(hk):
-            shutil.copy(os.path.join(hk, f), os.path.join(REPO, "templates", "hookify", f))
-
-    # ── Скрипты ───────────────────────────────────────────────────
-    scripts_src = os.path.join(_CLAUDE, "scripts")
-    scripts_dst = os.path.join(REPO, "scripts")
-    if os.path.isdir(scripts_src):
-        os.makedirs(scripts_dst, exist_ok=True)
-        for f in os.listdir(scripts_src):
-            p = os.path.join(scripts_src, f)
-            if os.path.isfile(p):
-                shutil.copy(p, os.path.join(scripts_dst, f))
-
-    # ── Субагенты ─────────────────────────────────────────────────
-    agents_src = os.path.join(_CLAUDE, "agents")
-    agents_dst = os.path.join(REPO, "agents")
-    if os.path.isdir(agents_src):
-        os.makedirs(agents_dst, exist_ok=True)
-        for f in os.listdir(agents_src):
-            p = os.path.join(agents_src, f)
-            if os.path.isfile(p):
-                shutil.copy(p, os.path.join(agents_dst, f))
-
-    # ── Pre-push аудит токенов ────────────────────────────────────
-    _REAL_TOKEN_RE = re.compile(
-        r'ghp_[A-Za-z0-9]{36}'                   # GitHub token
-        r'|[0-9]{10}:AA[A-Za-z0-9_\-]{33}'       # Telegram bot token
-        r'|475c06[a-f0-9]{50}'                    # Telegraph token
+    # Pre-push аудит токенов
+    _TOKEN_RE = re.compile(
+        r'ghp_[A-Za-z0-9]{36}'
+        r'|[0-9]{10}:AA[A-Za-z0-9_\-]{33}'
+        r'|475c06[a-f0-9]{50}'
     )
     leaks = []
     for root, _, fnames in os.walk(REPO):
@@ -535,33 +108,36 @@ def _sync_github():
             path = os.path.join(root, fn)
             try:
                 text = open(path, encoding="utf-8", errors="ignore").read()
-                for m in _REAL_TOKEN_RE.finditer(text):
+                for m in _TOKEN_RE.finditer(text):
                     leaks.append(f"{path}: {m.group()[:12]}...")
             except Exception:
                 pass
     if leaks:
-        raise RuntimeError("⛔ SECRET LEAK DETECTED — git push отменён:\n" + "\n".join(leaks))
+        raise RuntimeError("⛔ SECRET LEAK — git push отменён:\n" + "\n".join(leaks))
 
+    # Git commit + push
     token = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
     repo_url = f"https://{token}@github.com/elementalmasterpotap/potap-claude-setup.git"
+    clean_url = "https://github.com/elementalmasterpotap/potap-claude-setup.git"
+
     subprocess.run(["git", "-C", REPO, "remote", "set-url", "origin", repo_url], capture_output=True)
     subprocess.run(["git", "-C", REPO, "add", "."], capture_output=True)
     diff = subprocess.run(["git", "-C", REPO, "diff", "--cached", "--quiet"])
     if diff.returncode != 0:
         subprocess.run(["git", "-C", REPO, "commit", "-m", f"chore: sync — {ts}"], capture_output=True, check=True)
         subprocess.run(["git", "-C", REPO, "push"], capture_output=True, check=True)
-        subprocess.run(["git", "-C", REPO, "remote", "set-url", "origin",
-                        "https://github.com/elementalmasterpotap/potap-claude-setup.git"], capture_output=True)
         print(f"GitHub synced ({ts})")
     else:
         print("GitHub: no changes")
+    subprocess.run(["git", "-C", REPO, "remote", "set-url", "origin", clean_url], capture_output=True)
+
 
 try:
     _sync_github()
 except Exception as e:
     print(f"GitHub sync failed: {e}", file=sys.stderr)
 
-# ── Telegram preview refresh ──────────────────────────────────────
+# ── Telegram preview refresh ──────────────────────────────────────────────────
 TG_BOT       = os.environ.get("TELEGRAM_BOT_TOKEN")
 TG_CHAT      = "@potap_attic"
 TG_POST_FILE = os.path.join(_CLAUDE, ".tg_post_id")
@@ -578,6 +154,7 @@ TG_TEXT = (
     f"\n\n<i>обновлено {ts}</i>"
 )
 
+
 def _tg_api(method, payload):
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -585,6 +162,7 @@ def _tg_api(method, payload):
         data=data, headers={"Content-Type": "application/json"}
     )
     return json.loads(urllib.request.urlopen(req).read())
+
 
 def _refresh_tg_post():
     if not TG_BOT:
@@ -599,7 +177,6 @@ def _refresh_tg_post():
         if r.get("ok"):
             print(f"Telegram preview refreshed (message_id: {post_id})")
             return
-    # Пост не найден — отправить новый
     r = _tg_api("sendMessage", {
         "chat_id": TG_CHAT, "text": TG_TEXT,
         "parse_mode": "HTML", "link_preview_options": lp
@@ -608,6 +185,7 @@ def _refresh_tg_post():
         new_id = str(r["result"]["message_id"])
         open(TG_POST_FILE, "w").write(new_id)
         print(f"Telegram post sent (message_id: {new_id})")
+
 
 try:
     _refresh_tg_post()
