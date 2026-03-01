@@ -57,9 +57,15 @@ content = [
         "│   ├── allow       → [Bash(*), Edit(*), Write(*), Read(*), WebSearch, WebFetch(*)]\n"
         "│   ├── deny        → [~/.ssh/**, ~/.aws/**, ~/.gnupg/**, ~/.kube/**, ~/.npmrc, ...]\n"
         "│   └── defaultMode → dontAsk  (работает автономно)\n"
+        "├── showTurnDuration      → true  (время каждого turn в конце ответа)\n"
+        "├── statusLine            → scripts/statusline.sh  (git ветка + staged/modified)\n"
         "├── alwaysThinkingEnabled → true  (extended thinking по умолчанию)\n"
         "├── mcpServers      → {context7}  (живая документация библиотек)\n"
-        "├── hooks           → {Stop: anti-rationalization}  (блокирует отмазки)\n"
+        "├── hooks\n"
+        "│   ├── SessionStart [compact] → head CLAUDE.md  (реинжект после компакции)\n"
+        "│   ├── PreCompact   [auto]    → precompact-backup.sh  (бэкап транскрипта)\n"
+        "│   ├── TaskCompleted          → task-gate.sh  (блок если staged не закоммичен)\n"
+        "│   └── Stop                   → anti-ration.py  (блок отмазок)\n"
         "├── enabledPlugins  → [commit-commands, claude-md-management, hookify, github]\n"
         "└── env             → {GITHUB_TOKEN, TELEGRAPH_TOKEN, TELEGRAM_BOT_TOKEN}"
     ]},
@@ -248,11 +254,16 @@ content = [
         " (проектно). Каждый — md-файл с YAML-шапкой: модель, инструменты, системный промпт."
     ]},
     {"tag": "pre", "children": [
-        "~/.claude/agents/code-reviewer.md\n"
-        "  model:  claude-haiku  (дешевле, достаточно для ревью)\n"
-        "  tools:  Read, Glob, Grep  (только чтение — не может ничего сломать)\n"
-        "  prompt: ищи баги/секьюрити/антипаттерны, не придирайся к стилю\n"
-        "  output: 🔴 КРИТИЧНО / 🟡 ВНИМАНИЕ / 🟢 МЕЛОЧЬ"
+        "~/.claude/agents/\n"
+        "├── code-reviewer.md\n"
+        "│     model:  claude-haiku\n"
+        "│     tools:  Read, Glob, Grep  (только чтение)\n"
+        "│     output: 🔴 КРИТИЧНО / 🟡 ВНИМАНИЕ / 🟢 МЕЛОЧЬ\n"
+        "└── shader-expert.md\n"
+        "      model:  claude-haiku\n"
+        "      tools:  Read, Glob, Grep\n"
+        "      знает:  ps_3_0 бюджет, детектор, что нельзя трогать\n"
+        "      output: Диагноз / Причина / Риск для детектора"
     ]},
     {"tag": "p", "children": [
         "Субагент изолирован — работает в отдельном контексте, не засоряет main context. "
@@ -296,8 +307,13 @@ content = [
         "├── CLAUDE.md                  глобальный алгоритм сессии\n"
         "├── update_telegraph.py        скрипт обновления этого лонгрида\n"
         "├── rules/                     8 модульных md-файлов\n"
-        "├── agents/                    кастомные субагенты\n"
-        "│   └── code-reviewer.md       haiku, Read/Glob/Grep\n"
+        "├── agents/                    субагенты: code-reviewer, shader-expert\n"
+        "├── scripts/                   хуки и утилиты\n"
+        "│   ├── anti-ration.py         Stop hook — блок отмазок\n"
+        "│   ├── task-gate.sh           TaskCompleted gate\n"
+        "│   ├── precompact-backup.sh   PreCompact бэкап\n"
+        "│   ├── statusline.sh          git статусбар\n"
+        "│   └── publish-patchnote.py   патчнот → Telegraph страница\n"
         "└── templates/\n"
         "    ├── CLAUDE_BASE.md  MEMORY_TEMPLATE.md  и др.\n"
         "    └── hookify/        6 шаблонов хуков"
@@ -326,12 +342,18 @@ content = [
         "Безопасность           deny rules + Stop hook           кредсы недоступны, отмазки блокируются\n"
         "Живая документация     mcpServers.context7              актуальные API без галлюцинаций\n"
         "Ревью кода             agents/code-reviewer.md          haiku, только чтение, быстро\n"
+        "HLSL диагностика       agents/shader-expert.md          анализ шейдера, детектор, бюджет\n"
+        "Compact реинжект       hooks.SessionStart[compact]      критические правила после сжатия\n"
+        "Pre-compact бэкап      hooks.PreCompact + backup.sh     транскрипт до сжатия\n"
+        "Task gate              hooks.TaskCompleted + gate.sh    блок 'готово' без коммита\n"
+        "Статусбар              statusLine + statusline.sh       git ветка + diff в нижней строке\n"
         "Enforcement            hookify.*.local.md               block/warn хуки\n"
         "Стиль / тон            rules/communication.md           как разговаривать\n"
         "GitHub без gh CLI      rules/github_ops.md              API через PowerShell\n"
         "GitHub оформление      rules/github_formatting.md       README, бейджи, чеклист\n"
         "Telegram посты         rules/lessons_universal.md       TG-лимиты, Bot API\n"
         "Telegraph публикации   rules/telegraph.md               лонгриды, editPage\n"
+        "Патчнот → Telegraph    scripts/publish-patchnote.py     отдельная страница на патчнот\n"
         "Windows / C# / PS      rules/windows_dev.md             installer, WinForms\n"
         "Вайбкодинг             rules/vibe_coding.md             человеческий язык → параметры\n"
         "Ловушки / антипат.     rules/lessons_universal.md       баги из практики\n"
@@ -388,6 +410,16 @@ def _sync_github():
     if os.path.isdir(hk):
         for f in os.listdir(hk):
             shutil.copy(os.path.join(hk, f), os.path.join(REPO, "templates", "hookify", f))
+
+    # ── Скрипты ───────────────────────────────────────────────────
+    scripts_src = os.path.join(_CLAUDE, "scripts")
+    scripts_dst = os.path.join(REPO, "scripts")
+    if os.path.isdir(scripts_src):
+        os.makedirs(scripts_dst, exist_ok=True)
+        for f in os.listdir(scripts_src):
+            p = os.path.join(scripts_src, f)
+            if os.path.isfile(p):
+                shutil.copy(p, os.path.join(scripts_dst, f))
 
     # ── Субагенты ─────────────────────────────────────────────────
     agents_src = os.path.join(_CLAUDE, "agents")
