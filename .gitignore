@@ -2,11 +2,32 @@
 .env
 *.token
 .telegraph_token
+settings.json
+settings.local.json
+.tg_post_id
+
+# Claude runtime (personal data — never commit)
+memory/
+history.jsonl
+*.jsonl
+projects/
+session-env/
+shell-snapshots/
+telemetry/
+cache/
+plans/
+todos/
+debug/
+downloads/
+paste-cache/
+file-history/
+backups/
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
 # OS
 .DS_Store
@@ -16,6 +37,3 @@ desktop.ini
 # IDE
 .vscode/
 .idea/
-
-# Claude local
-.claude/settings.local.json

@@ -364,6 +364,27 @@ def _sync_github():
         for f in os.listdir(hk):
             shutil.copy(os.path.join(hk, f), os.path.join(REPO, "templates", "hookify", f))
 
+    # ── Pre-push аудит токенов ────────────────────────────────────
+    _REAL_TOKEN_RE = re.compile(
+        r'ghp_[A-Za-z0-9]{36}'                   # GitHub token
+        r'|[0-9]{10}:AA[A-Za-z0-9_\-]{33}'       # Telegram bot token
+        r'|475c06[a-f0-9]{50}'                    # Telegraph token
+    )
+    leaks = []
+    for root, _, fnames in os.walk(REPO):
+        if ".git" in root:
+            continue
+        for fn in fnames:
+            path = os.path.join(root, fn)
+            try:
+                text = open(path, encoding="utf-8", errors="ignore").read()
+                for m in _REAL_TOKEN_RE.finditer(text):
+                    leaks.append(f"{path}: {m.group()[:12]}...")
+            except Exception:
+                pass
+    if leaks:
+        raise RuntimeError("⛔ SECRET LEAK DETECTED — git push отменён:\n" + "\n".join(leaks))
+
     token = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
     repo_url = f"https://{token}@github.com/elementalmasterpotap/potap-claude-setup.git"
     subprocess.run(["git", "-C", REPO, "remote", "set-url", "origin", repo_url], capture_output=True)
