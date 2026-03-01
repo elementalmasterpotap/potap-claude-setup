@@ -5,6 +5,7 @@ Telegraph-контент лонгрида «Как я кастомизирую C
 
 Структура секций — маркеры вида # ═══ СЕКЦИЯ: xxx ═══
 При редактировании: читать этот файл, найти нужную секцию, сделать Edit только в ней.
+Нет подходящей секции → добавить новую (маркер + переменная + включить в return).
 """
 
 
@@ -299,9 +300,14 @@ def get_content(ts: str) -> list:
         ]},
         {"tag": "pre", "children": [
             "~/.claude/agents/\n"
+            "├── codebase-explorer.md\n"
+            "│     model:  claude-haiku\n"
+            "│     tools:  Read, Glob, Grep, LS, Bash(read-only)\n"
+            "│     когда:  найти/перечислить/проанализировать — без правок\n"
+            "│     пометка: [→ Haiku] перед делегированием\n"
             "├── code-reviewer.md\n"
             "│     model:  claude-haiku\n"
-            "│     tools:  Read, Glob, Grep  (только чтение)\n"
+            "│     tools:  Read, Glob, Grep\n"
             "│     output: 🔴 КРИТИЧНО / 🟡 ВНИМАНИЕ / 🟢 МЕЛОЧЬ\n"
             "└── shader-expert.md\n"
             "      model:  claude-haiku\n"
@@ -311,7 +317,9 @@ def get_content(ts: str) -> list:
         ]},
         {"tag": "p", "children": [
             "Субагент изолирован — работает в отдельном контексте, не засоряет main context. "
-            "Haiku дешевле Sonnet в 10–20 раз, для code review этого хватает."
+            "Haiku дешевле Sonnet в 10–20 раз. Скилл ",
+            {"tag": "code", "children": ["haiku-router"]},
+            " описывает маппинг задача → агент: поиск/анализ/аудит → Haiku, правки/архитектура → Sonnet."
         ]},
         {"tag": "hr"},
     ]
@@ -340,6 +348,7 @@ def get_content(ts: str) -> list:
             "  /learn     [описание]        зафиксировать паттерн из сессии\n"
             "\n"
             "Knowledge-скиллы (Claude подгружает сам когда задача подходит):\n"
+            "  haiku-router     маппинг задача → Haiku-агент, правило пометки [→ Haiku]\n"
             "  ps-cookbook      PowerShell: PS-1/PS-2/PS-3 ловушки, upload endpoint\n"
             "  csharp-cookbook  C# 5: expression-bodied, auto-init, $\"\", nameof — что не работает\n"
             "  gh-ops-ref       GitHub API: релизы, ассеты, topics, кириллица через \\uXXXX\n"
@@ -476,6 +485,8 @@ def get_content(ts: str) -> list:
             "PreToolUse safety          pretool-safety.py                 --no-verify/reset--hard/push-f/rm-rf/logo\n"
             "Чекпоинт                   checkpoint.py                     лог изменённых файлов в SESSION.md\n"
             "Живая документация         mcpServers.context7               актуальные API без галлюцинаций\n"
+            "Haiku-роутер               skills/haiku-router               маппинг задач на дешёвые субагенты\n"
+            "Исследование кода          agents/codebase-explorer.md       haiku, поиск/анализ без правок, [→ Haiku]\n"
             "Ревью кода                 agents/code-reviewer.md           haiku, только чтение, быстро\n"
             "HLSL диагностика           agents/shader-expert.md           анализ шейдера, детектор, бюджет\n"
             "Compact реинжект           hooks.SessionStart[compact]       критические правила после сжатия\n"
