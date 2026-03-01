@@ -336,12 +336,19 @@ content = [
         "├── update_telegraph.py        скрипт обновления этого лонгрида\n"
         "├── rules/                     8 модульных md-файлов\n"
         "├── agents/                    субагенты: code-reviewer, shader-expert\n"
-        "├── scripts/                   хуки и утилиты\n"
-        "│   ├── anti-ration.py         Stop hook — блок отмазок\n"
-        "│   ├── task-gate.sh           TaskCompleted gate\n"
-        "│   ├── precompact-backup.sh   PreCompact бэкап\n"
-        "│   ├── statusline.sh          git статусбар\n"
-        "│   └── publish-patchnote.py   патчнот → Telegraph страница\n"
+        "├── scripts/                   хуки: 1 PreToolUse + 11 Stop hooks\n"
+        "├── skills/                    11 пользовательских скиллов\n"
+        "│   ├── /patchnote             написать патчнот по формату\n"
+        "│   ├── /gh-setup              оформить репо по чеклисту\n"
+        "│   ├── /vibe                  вайбкодинг по описанию\n"
+        "│   ├── /sync                  синхронизировать кастомизации\n"
+        "│   ├── /lessons               таблица всех уроков из практики\n"
+        "│   ├── /hooks-status          аудит хуков vs правила\n"
+        "│   ├── /telegraph-post        создать/обновить Telegraph статью\n"
+        "│   ├── ps-cookbook            [авто] PowerShell паттерны\n"
+        "│   ├── csharp-cookbook        [авто] C# 5 паттерны и ограничения\n"
+        "│   ├── gh-ops-ref             [авто] GitHub API через PS\n"
+        "│   └── tg-ref                 [авто] Telegram Bot API\n"
         "└── templates/\n"
         "    ├── CLAUDE_BASE.md  MEMORY_TEMPLATE.md  и др.\n"
         "    └── hookify/        6 шаблонов хуков"
@@ -356,6 +363,33 @@ content = [
         "  ├── editPage    → Telegraph (контент + дата)\n"
         "  ├── git push    → GitHub (rules/, CLAUDE.md, templates/)\n"
         "  └── editMessage → Telegram-пост (рефетч превью + дата)"
+    ]},
+    {"tag": "hr"},
+
+    # ── Skills ────────────────────────────────────────────────────
+    {"tag": "h3", "children": ["skills/ — пользовательские команды"]},
+    {"tag": "p", "children": [
+        "Скиллы — slash-команды и фоновые знания. Живут в ",
+        {"tag": "code", "children": ["~/.claude/skills/<name>/SKILL.md"]},
+        ". Вызывать командой ",
+        {"tag": "code", "children": ["/skill-name"]},
+        " или Claude подгружает автоматически когда тема релевантна."
+    ]},
+    {"tag": "pre", "children": [
+        "Action-скиллы (вызывать явно /командой):\n"
+        "  /patchnote [vX.X.X]     написать патчнот по workflow_universal.md формату\n"
+        "  /gh-setup  [owner/repo]  оформить репо по чеклисту github_formatting.md\n"
+        "  /vibe      [описание]    вайбкодинг — изменить параметры по желаемому результату\n"
+        "  /sync                    обновить Telegraph + GitHub + Telegram одной командой\n"
+        "  /lessons                 таблица всех уроков PS/C#/TG/GH из практики\n"
+        "  /hooks-status            аудит: какие правила захукированы, какие нет\n"
+        "  /telegraph-post [URL]    создать или обновить Telegraph статью\n"
+        "\n"
+        "Knowledge-скиллы (Claude подгружает сам когда задача подходит):\n"
+        "  ps-cookbook      PowerShell: PS-1/PS-2/PS-3 ловушки, upload endpoint\n"
+        "  csharp-cookbook  C# 5: expression-bodied, auto-init, $\"\", nameof — что не работает\n"
+        "  gh-ops-ref       GitHub API: релизы, ассеты, topics, кириллица через \\uXXXX\n"
+        "  tg-ref           Telegram: лимиты, sendPhoto vs sendMessage, parse_mode"
     ]},
     {"tag": "hr"},
 
@@ -387,6 +421,8 @@ content = [
         "Task gate              hooks.TaskCompleted + gate.sh    блок 'готово' без коммита\n"
         "Статусбар              statusLine + statusline.sh       git ветка + diff в нижней строке\n"
         "Enforcement            hookify.*.local.md               block/warn хуки\n"
+        "Skills (7 action)      skills/patchnote,gh-setup,...   /команды для workflow\n"
+        "Skills (4 knowledge)   skills/ps-cookbook,tg-ref,...   авто-подгрузка справки\n"
         "Стиль / тон            rules/communication.md           как разговаривать\n"
         "GitHub без gh CLI      rules/github_ops.md              API через PowerShell\n"
         "GitHub оформление      rules/github_formatting.md       README, бейджи, чеклист\n"
@@ -440,6 +476,21 @@ def _sync_github():
             open(dst, 'w', encoding='utf-8').write(txt)
         else:
             shutil.copy(src, dst)
+
+    # ── Skills ────────────────────────────────────────────────────
+    skills_src = os.path.join(_CLAUDE, "skills")
+    skills_dst = os.path.join(REPO, "skills")
+    if os.path.isdir(skills_src):
+        os.makedirs(skills_dst, exist_ok=True)
+        for skill in os.listdir(skills_src):
+            sp = os.path.join(skills_src, skill)
+            dp = os.path.join(skills_dst, skill)
+            if os.path.isdir(sp):
+                os.makedirs(dp, exist_ok=True)
+                for f in os.listdir(sp):
+                    p = os.path.join(sp, f)
+                    if os.path.isfile(p):
+                        shutil.copy(p, os.path.join(dp, f))
 
     for f in os.listdir(tpl_src):
         p = os.path.join(tpl_src, f)
