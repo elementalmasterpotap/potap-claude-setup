@@ -3,14 +3,25 @@
 Единственный файл — всегда editPage, не пересоздавать.
 Путь: Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01
 """
-import urllib.request, json, os, sys
+import urllib.request, json, os, sys, subprocess, shutil, re
+from datetime import datetime, timezone, timedelta
 
 TOKEN = os.environ.get("TELEGRAPH_TOKEN")
 if not TOKEN:
     print("Error: TELEGRAPH_TOKEN not set", file=sys.stderr); sys.exit(1)
-PATH  = "Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01"
+
+PATH = "Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01"
+_CLAUDE = os.path.join(os.path.expanduser("~"), ".claude")
+REPO    = os.path.join(_CLAUDE, "claude-setup")
+
+tz_msk = timezone(timedelta(hours=3))   # Воронеж = МСК = UTC+3
+now    = datetime.now(tz_msk)
+ts     = now.strftime("%d.%m.%Y %H:%M МСК")
 
 content = [
+    # ── Дата обновления ──────────────────────────────────────────
+    {"tag": "p", "children": [{"tag": "i", "children": [f"Обновлено: {ts}"]}]},
+
     # ── Предисловие ──────────────────────────────────────────────
     {"tag": "p", "children": [{"tag": "i", "children": [
         "Лонгрид обновляется автоматически — каждый раз когда я добавляю или убираю кастомизацию, "
@@ -251,6 +262,34 @@ content = [
     ]},
     {"tag": "hr"},
 
+    # ── GitHub ────────────────────────────────────────────────────
+    {"tag": "h3", "children": ["GitHub"]},
+    {"tag": "p", "children": [
+        "Вся система — правила, шаблоны, hookify-хуки, скрипт обновления этого лонгрида — лежит на GitHub:"
+    ]},
+    {"tag": "p", "children": [{"tag": "a",
+        "href": "https://github.com/elementalmasterpotap/claude-setup",
+        "children": ["github.com/elementalmasterpotap/claude-setup"]
+    }]},
+    {"tag": "pre", "children": [
+        "claude-setup/\n"
+        "├── CLAUDE.md                  глобальный алгоритм сессии\n"
+        "├── update_telegraph.py        скрипт обновления этого лонгрида\n"
+        "├── rules/                     8 модульных md-файлов\n"
+        "│   ├── communication.md\n"
+        "│   ├── github_ops.md\n"
+        "│   ├── github_formatting.md\n"
+        "│   ├── telegraph.md\n"
+        "│   ├── workflow_universal.md\n"
+        "│   ├── windows_dev.md\n"
+        "│   ├── vibe_coding.md\n"
+        "│   └── lessons_universal.md\n"
+        "└── templates/\n"
+        "    ├── CLAUDE_BASE.md  MEMORY_TEMPLATE.md  и др.\n"
+        "    └── hookify/        6 шаблонов хуков"
+    ]},
+    {"tag": "hr"},
+
     # ── Итог ─────────────────────────────────────────────────────
     {"tag": "h3", "children": ["Итог — компоненты системы"]},
     {"tag": "pre", "children": [
@@ -294,3 +333,49 @@ req = urllib.request.Request(
 )
 result = json.loads(urllib.request.urlopen(req).read())
 print(result["result"]["url"])
+
+# ── GitHub sync ───────────────────────────────────────────────────
+def _sync_github():
+    rules_src  = os.path.join(_CLAUDE, "rules")
+    tpl_src    = os.path.join(_CLAUDE, "templates")
+    claude_src = os.path.join(_CLAUDE, "CLAUDE.md")
+
+    shutil.copy(os.path.abspath(__file__), os.path.join(REPO, "update_telegraph.py"))
+    shutil.copy(claude_src, os.path.join(REPO, "CLAUDE.md"))
+
+    for f in os.listdir(rules_src):
+        src, dst = os.path.join(rules_src, f), os.path.join(REPO, "rules", f)
+        if f == "telegraph.md":
+            txt = re.sub(r'.*Auth \(войти в браузере\).*\n', '', open(src).read())
+            txt = re.sub(r'TOKEN = "[^"]{10,}"', 'TOKEN = os.environ["TELEGRAPH_TOKEN"]', txt)
+            open(dst, 'w', encoding='utf-8').write(txt)
+        else:
+            shutil.copy(src, dst)
+
+    for f in os.listdir(tpl_src):
+        p = os.path.join(tpl_src, f)
+        if os.path.isfile(p):
+            shutil.copy(p, os.path.join(REPO, "templates", f))
+    hk = os.path.join(tpl_src, "hookify")
+    if os.path.isdir(hk):
+        for f in os.listdir(hk):
+            shutil.copy(os.path.join(hk, f), os.path.join(REPO, "templates", "hookify", f))
+
+    token = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
+    repo_url = f"https://{token}@github.com/elementalmasterpotap/claude-setup.git"
+    subprocess.run(["git", "-C", REPO, "remote", "set-url", "origin", repo_url], capture_output=True)
+    subprocess.run(["git", "-C", REPO, "add", "."], capture_output=True)
+    diff = subprocess.run(["git", "-C", REPO, "diff", "--cached", "--quiet"])
+    if diff.returncode != 0:
+        subprocess.run(["git", "-C", REPO, "commit", "-m", f"chore: sync — {ts}"], capture_output=True, check=True)
+        subprocess.run(["git", "-C", REPO, "push"], capture_output=True, check=True)
+        subprocess.run(["git", "-C", REPO, "remote", "set-url", "origin",
+                        "https://github.com/elementalmasterpotap/claude-setup.git"], capture_output=True)
+        print(f"GitHub synced ({ts})")
+    else:
+        print("GitHub: no changes")
+
+try:
+    _sync_github()
+except Exception as e:
+    print(f"GitHub sync failed: {e}", file=sys.stderr)
