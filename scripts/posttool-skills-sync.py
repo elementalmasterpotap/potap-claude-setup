@@ -22,28 +22,34 @@ try:
 
     path = inp.get('file_path', '') or ''
 
+    msg = None
+
     if SKILL_RE.search(path):
-        print(
-            "📌 skills/ изменён → запусти /sync\n"
-            "Скиллы = кастомизация: Telegraph + GitHub + Telegram должны быть актуальны."
+        msg = (
+            "📌 skills/ изменён → проверь: Telegraph + GitHub + Telegram актуальны? "
+            "Если добавил новый скилл — обнови telegraph_content.py и запусти update_telegraph.py."
         )
 
     elif RULES_RE.search(path):
-        print(
-            "📌 rules/ изменён — проверь комплект правила:\n"
-            "  ├── Stop hook в scripts/*-check.py  (можно автоматизировать?)\n"
-            "  └── Skill в skills/*/SKILL.md        (action или knowledge?)\n"
-            "Нет → зафикси почему в комментарии правила. Потом: /sync"
+        msg = (
+            "📌 rules/ изменён — проверь комплект правила: "
+            "(1) Stop hook в scripts/*-check.py (можно автоматизировать?); "
+            "(2) Skill в skills/*/SKILL.md (action или knowledge?). "
+            "Нет → зафикси НЕВОЗМОЖНО в комментарии правила. Потом обнови лонгрид."
         )
 
     elif SCRIPTS_RE.search(path):
         fname = re.search(r'[^/\\]+$', path)
         if fname and ('check' in fname.group().lower() or 'pretool' in fname.group().lower()):
-            print(
-                "📌 Новый хук в scripts/ — создай skill если нужен ручной invoke:\n"
-                "  skills/<name>/SKILL.md  с disable-model-invocation: true\n"
-                "Потом: /sync"
+            msg = (
+                "📌 Новый хук в scripts/ — нужно: "
+                "(1) зарегистрировать в settings.json; "
+                "(2) создать skill если нужен ручной invoke. "
+                "Обнови лонгрид через update_telegraph.py."
             )
+
+    if msg:
+        print(json.dumps({"decision": "warn", "reason": msg}, ensure_ascii=False))
 
 except Exception:
     pass

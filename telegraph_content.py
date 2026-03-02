@@ -69,7 +69,7 @@ def get_content(ts: str) -> list:
             "    ├── PreToolUse   → pretool-safety.py        --no-verify/reset--hard/push-f/rm-rf\n"
             "    ├── PostToolUse  → skills-sync + checkpoint + pattern-logger  (3 хука)\n"
             "    ├── UPS×2        → haiku-suggest + window-tracker  (Pro 5h окно)\n"
-            "    └── Stop         → 14 хуков (+ session-length-check: /compact hint)"
+            "    └── Stop         → 15 хуков (+ session-length-check: /compact hint)"
         ]},
         {"tag": "p", "children": [
             {"tag": "b", "children": ["deny"]},
@@ -110,6 +110,7 @@ def get_content(ts: str) -> list:
             "  csharp-compat-check.py → C# 6+ синтаксис в csc.exe .NET 4.x контексте\n"
             "  github-upload-check.py → api.github.com вместо uploads.github.com для ассетов\n"
             "  telegraph-edit-check.py → createPage лонгрида / curl + кириллица в Telegraph\n"
+            "  learning-suggest.py   → обнаружен паттерн/ловушка — предложи /learn\n"
             "  session-stop.py       → сохранение контекста сессии при разрыве соединения\n"
             "  heavy-files-check.py  → warn: node_modules/lock-файл без .claudeignore"
         ]},
@@ -421,7 +422,7 @@ def get_content(ts: str) -> list:
             "├── telegraph_content.py       контент лонгрида по секциям (только данные)\n"
             "├── rules/                     8 модульных md-файлов\n"
             "├── agents/                    субагенты: code-reviewer, shader-expert\n"
-            "├── scripts/                   хуки: 2 UPS + 1 PreToolUse + 14 Stop + 3 PostToolUse + 1 PreCompact\n"
+            "├── scripts/                   хуки: 2 UPS + 1 PreToolUse + 15 Stop + 3 PostToolUse + 1 PreCompact\n"
             "├── skills/                    10 action + 5 knowledge скиллов\n"
             "│   ├── /review                система самообучения — анализ сессии\n"
             "│   ├── /patchnote             написать патчнот по формату\n"
@@ -485,6 +486,7 @@ def get_content(ts: str) -> list:
             "C# 5 совместимость    csharp-compat-check.py       warn C# 6+ синтаксис в .NET 4.x\n"
             "GitHub upload         github-upload-check.py       warn api.github вместо uploads\n"
             "Telegraph editPage    telegraph-edit-check.py      блок createPage / curl + кириллица\n"
+            "Паттерн → /learn      learning-suggest.py          предлагает зафиксировать инсайт\n"
             "Сохранение сессии     session-stop.py              контекст при разрыве соединения\n"
             "Тяжёлые файлы         heavy-files-check.py         warn lock-файл без .claudeignore\n"
             "Умный бэкап           precompact-smart.py          jsonl + LLM summary перед compaction\n"
