@@ -1,77 +1,102 @@
 <div align="center">
 
-  **Как я кастомизирую Claude: правила, память и модули**
+[![](https://img.shields.io/badge/11_action_skills-0099CC?style=flat-square)](skills/)
+[![](https://img.shields.io/badge/14_Stop_hooks-FF6B35?style=flat-square)](scripts/)
+[![](https://img.shields.io/badge/Python-3.x-3776AB?style=flat-square&logo=python&logoColor=white)](update_telegraph.py)
+[![](https://img.shields.io/badge/license-MIT-22AA44?style=flat-square)](LICENSE)
+[![](https://img.shields.io/badge/Telegram-channel-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/potap_attic)
+[![](https://img.shields.io/badge/Telegraph-longread-009999?style=flat-square)](https://telegra.ph/Kak-ya-kastomiziruyu-Claude--pravila-pamyat-i-moduli-03-07)
 
-  Авто-обновляемая документация моей настройки Claude Code
+<br>
 
-  <br>
+<details>
+<summary>English</summary>
 
-  [![](https://img.shields.io/badge/Python-3.x-3776AB?style=flat-square&logo=python&logoColor=white)](update_telegraph.py)
-  [![](https://img.shields.io/badge/лицензия-MIT-22AA44?style=flat-square)](LICENSE)
-  [![](https://img.shields.io/badge/Telegram-канал-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/potap_attic)
-  [![](https://img.shields.io/badge/Telegraph-лонгрид-009999?style=flat-square)](https://telegra.ph/Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01)
+**My Claude Code customization stack — rules, memory, hooks, skills.**
 
-  <br>
+Auto-synced: every time I change something, the Telegraph article and this repo update automatically via `/sync`.
 
-  **[📖 Читать лонгрид →](https://telegra.ph/Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01)**
+## What's inside
 
-</div>
-
----
-
-`update_telegraph.py` авто-обновляет [Telegraph-статью](https://telegra.ph/Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01) с документацией по моей настройке Claude Code.
-
-Каждый раз когда я добавляю или убираю кастомизацию — Claude запускает скрипт и статья обновляется. То что в статье = актуальное состояние системы.
-
----
-
-## Что в документации
-
-| Компонент | Что делает |
+| Component | Purpose |
 |---|---|
-| `settings.json` | разрешения, плагины, глобальные токены |
-| `~/.claude/CLAUDE.md` | алгоритм сессии, маршрутизатор задач |
-| `rules/*.md` | модули по доменам (GitHub, Telegram, Windows, вайбкодинг...) |
-| `memory/MEMORY.md` | долговременная память между сессиями |
-| `hookify.*.local.md` | block/warn хуки для деструктивных действий |
-| Проектный `CLAUDE.md` | специфика отдельных репозиториев |
+| `CLAUDE.md` | Session algorithm, task router |
+| `rules/*.md` | Domain modules (GitHub, Telegram, Windows, vibe coding, Haiku economy...) |
+| `agents/*.md` | Subagent profiles (code-reviewer, codebase-explorer, shader-expert) |
+| `skills/*/SKILL.md` | Slash-skills (11 action + 8 knowledge) |
+| `scripts/*.py` | Stop hooks — block/warn on destructive actions (14 hooks) |
+| `templates/` | Starter files for new projects |
 
----
+## How it works
 
-## Запуск
+```
+customization changed
+        ↓
+/sync skill → update_telegraph.py
+        ↓
+editPage → Telegraph article updated
+git push → this repo updated
+editMessage → Telegram post updated
+```
+
+## Quick start
 
 ```bash
+# Telegraph sync (requires TELEGRAPH_TOKEN env)
 TELEGRAPH_TOKEN=your_token python update_telegraph.py
 ```
 
-Получить токен: [telegra.ph API createAccount](https://api.telegra.ph/createAccount?short_name=YourName&author_name=YourName)
+Get token: `curl "https://api.telegra.ph/createAccount?short_name=YourName&author_name=YourName"`
 
----
+## Full docs
 
-## Как устроено
+[Read the longread](https://telegra.ph/Kak-ya-kastomiziruyu-Claude--pravila-pamyat-i-moduli-03-07) — everything in one place, always up to date.
 
-`update_telegraph.py` вызывает Telegraph API `editPage` — перезаписывает содержимое существующей статьи. Единственный файл, не пересоздаётся. Claude автоматически запускает его после каждого изменения кастомизаций.
+</details>
+
+<details open>
+<summary>Русский</summary>
+
+**Мой стек кастомизаций Claude Code — правила, память, хуки, скиллы.**
+
+Авто-синхронизация: когда что-то меняется, Telegraph-статья и этот репо обновляются через `/sync`.
+
+## Что внутри
+
+| Компонент | Назначение |
+|---|---|
+| `CLAUDE.md` | Алгоритм сессии, маршрутизатор задач |
+| `rules/*.md` | Модули по доменам (GitHub, Telegram, Windows, вайбкодинг, Haiku-экономия...) |
+| `agents/*.md` | Профили субагентов (code-reviewer, codebase-explorer, shader-expert) |
+| `skills/*/SKILL.md` | Скиллы (11 action + 8 knowledge) |
+| `scripts/*.py` | Stop-хуки — блок/предупреждение при деструктивных действиях (14 хуков) |
+| `templates/` | Стартовые файлы для новых проектов |
+
+## Как работает
 
 ```
 кастомизация изменена
         ↓
-Claude запускает update_telegraph.py
+/sync скилл → update_telegraph.py
         ↓
 editPage → Telegraph статья обновлена
-        ↓
-лонгрид отражает актуальное состояние
+git push → этот репо обновлён
+editMessage → пост в Telegram обновлён
 ```
 
----
+## Запуск
 
-## Требования
+```bash
+# Синхронизация (нужен TELEGRAPH_TOKEN)
+TELEGRAPH_TOKEN=your_token python update_telegraph.py
+```
 
-- Python 3.x (stdlib only, без зависимостей)
-- Telegraph access token
+Получить токен: `curl "https://api.telegra.ph/createAccount?short_name=YourName&author_name=YourName"`
 
----
+## Полная документация
 
-## Разработка
+[Читать лонгрид](https://telegra.ph/Kak-ya-kastomiziruyu-Claude--pravila-pamyat-i-moduli-03-07) — всё в одном месте, всегда актуально.
 
-- [Читать лонгрид](https://telegra.ph/Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01) — полная документация системы
-- [Telegram-канал](https://t.me/potap_attic) — обновления и посты
+</details>
+
+</div>
