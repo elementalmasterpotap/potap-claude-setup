@@ -7,6 +7,17 @@
 **Проблема:** `Edit(settings.json)` → "File has not been read yet" даже после чтения.
 `cat ~/.claude/settings.json | python3 -c "..."` → путь `/c/Users/...` не раскрывается в Windows.
 **Решение:** всегда `os.path.expanduser('~/.claude/settings.json')` через Python-heredoc:
+
+⚠️ **При чтении settings.json для аудита/вывода — всегда фильтровать `env` секцию:**
+```python
+# ПЛОХО — выводит токены в output (Telegraph, Telegram, GitHub)
+print(json.dumps(s))
+
+# ХОРОШО — скрыть env перед любым выводом
+s_safe = {k: v for k, v in s.items() if k != 'env'}
+print(json.dumps(s_safe, indent=2))
+```
+Реальные токены из env не должны попадать в execute output / логи / ответы.
 ```python
 import json, os
 path = os.path.expanduser('~/.claude/settings.json')
@@ -216,3 +227,32 @@ $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 - `string.IsNullOrWhiteSpace` — работает
 - `nameof()` — НЕ работает (C# 6+)
 - `$"..."` — интерполяция НЕ работает (C# 6+), использовать `string.Format`
+
+---
+
+## C# WinForms — async process runner (паттерн)
+
+**Антипаттерн:** глобальный `bool busy` флаг → если процесс зависает в `WaitForExit()` (pip, MSBuild), флаг не сбрасывается → все кнопки мертвы навсегда.
+
+**Правильный паттерн:** кнопка блокирует сама себя, `finally` включает обратно:
+```csharp
+// Кнопка отключает себя перед вызовом
+btn.Click += delegate(object s, EventArgs e) {
+    Button self = (Button)s;
+    self.Enabled = false;
+    RunCommand(exe, args, self);
+};
+
+void RunCommand(string exe, string args, Control btn) {
+    System.Threading.ThreadPool.QueueUserWorkItem(delegate(object _) {
+        try {
+            // ... Process.Start, WaitForExit ...
+        } finally {
+            // Всегда включаем кнопку обратно
+            if (btn.InvokeRequired) btn.Invoke(new Action(() => btn.Enabled = true));
+            else btn.Enabled = true;
+        }
+    });
+}
+```
+Каждая кнопка независима — одна заблокирована, остальные работают.

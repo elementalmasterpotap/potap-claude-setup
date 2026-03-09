@@ -19,6 +19,12 @@ Invoke-RestMethod -Method POST 'https://api.github.com/user/repos' -Headers $h -
 
 ## 2. Первый пуш
 ```powershell
+# ⚠️ Сначала проверить email — иначе Contributors будет чужой аккаунт (GH-4)
+# Локальный config НЕ должен переопределять глобальный неправильным адресом:
+git config --local user.email
+# Должно быть пусто (наследует глобальный) или YOUR_GITHUB_ID+YOUR_GITHUB_USERNAME@users.noreply.github.com
+# Если что-то другое — исправить: git config --local user.email "YOUR_GITHUB_ID+YOUR_GITHUB_USERNAME@users.noreply.github.com"
+
 git init
 git add .
 git commit -m "feat: initial commit"

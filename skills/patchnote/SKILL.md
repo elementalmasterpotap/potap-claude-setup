@@ -1,8 +1,8 @@
 ---
 name: patchnote
-description: Написать патчнот и вставить в начало docs/PATCHNOTES.md. Формат workflow_universal.md — tagline курсивом, от первого лица.
+description: Написать патчнот, вставить в docs/PATCHNOTES.md, опционально опубликовать на Telegraph. Формат workflow_universal.md — tagline курсивом, от первого лица.
 disable-model-invocation: true
-argument-hint: [vX.X.X] [что изменилось]
+argument-hint: [vX.X.X] [что изменилось] [publish]
 ---
 
 Напиши патчнот и вставь его в начало `docs/PATCHNOTES.md`.
@@ -32,3 +32,5 @@ argument-hint: [vX.X.X] [что изменилось]
 
 ## После написания:
 Вставь патчнот в начало `docs/PATCHNOTES.md` (сразу после заголовка `# Патчноты` если он есть).
+
+<!-- Stop hook: patchnote-check.py (Stop) -->

@@ -6,7 +6,7 @@ Stop hook: Telegraph — только editPage для лонгрида, не cre
 """
 import sys, json, re
 
-LONGREAD_PATH = "Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01"
+LONGREAD_PATH = "YOUR-TELEGRAPH-PAGE"
 
 CREATE_RE     = re.compile(r'\bcreate[Pp]age\b')
 CURL_TG_RE    = re.compile(r'curl\b.*telegra\.ph', re.IGNORECASE | re.DOTALL)

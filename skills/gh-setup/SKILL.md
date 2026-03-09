@@ -5,6 +5,7 @@ disable-model-invocation: true
 argument-hint: [owner/repo или текущий]
 ---
 
+<!-- Stop hook: НЕВОЗМОЖНО — чеклист оформления, нет машинных паттернов -->
 Выполни полный чеклист оформления GitHub репозитория: $ARGUMENTS
 (если не указан — определи текущий из git remote)
 
@@ -39,5 +40,5 @@ $h     = @{ Authorization='Bearer '+$token; 'User-Agent'='PS'; Accept='applicati
 [![](https://img.shields.io/badge/v1.0.0-0099CC?style=flat-square)](releases)
 [![](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](...)
 [![](https://img.shields.io/badge/лицензия-MIT-22AA44?style=flat-square)](LICENSE)
-[![](https://img.shields.io/badge/Telegram-канал-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/potap_attic)
+[![](https://img.shields.io/badge/Telegram-канал-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/YOUR_CHANNEL)
 ```

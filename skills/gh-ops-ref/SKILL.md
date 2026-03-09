@@ -4,6 +4,7 @@ description: GitHub API паттерны через PowerShell — репо, р�
 user-invocable: false
 ---
 
+<!-- Stop hook: github-upload-check.py (Stop, GH-2) -->
 ## Инициализация
 
 ```powershell
@@ -36,7 +37,7 @@ Invoke-RestMethod -Method PUT "https://api.github.com/repos/$repo/topics" `
     -Headers $h -Body '{"names":["topic1","topic2"]}' -ContentType 'application/json'
 
 Invoke-RestMethod -Method PATCH "https://api.github.com/repos/$repo" `
-    -Headers $h -Body '{"homepage":"https://t.me/potap_attic"}' -ContentType 'application/json'
+    -Headers $h -Body '{"homepage":"https://t.me/YOUR_CHANNEL"}' -ContentType 'application/json'
 ```
 
 ## Кириллица в релизе → одинарные кавычки + \uXXXX

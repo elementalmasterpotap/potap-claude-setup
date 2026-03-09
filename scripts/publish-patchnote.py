@@ -109,7 +109,7 @@ data = json.dumps({
     "access_token": TOKEN,
     "title": title,
     "author_name": "Potap",
-    "author_url": "https://t.me/potap_attic",
+    "author_url": "https://t.me/YOUR_CHANNEL",
     "content": nodes,
     "return_content": False
 }).encode("utf-8")

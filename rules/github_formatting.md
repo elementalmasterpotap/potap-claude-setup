@@ -39,7 +39,7 @@
   [![](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](...)
   [![](https://img.shields.io/badge/[технология]-FF7B00?style=flat-square)]([ссылка])
   [![](https://img.shields.io/badge/лицензия-MIT-22AA44?style=flat-square)](LICENSE)
-  [![](https://img.shields.io/badge/Telegram-канал-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/potap_attic)
+  [![](https://img.shields.io/badge/Telegram-канал-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/YOUR_CHANNEL)
 
   <br>
 
@@ -118,7 +118,7 @@
 [![](https://img.shields.io/badge/лицензия-MIT-22AA44?style=flat-square)](LICENSE)
 
 # Telegram
-[![](https://img.shields.io/badge/Telegram-канал-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/potap_attic)
+[![](https://img.shields.io/badge/Telegram-канал-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/YOUR_CHANNEL)
 
 # Произвольный
 [![](https://img.shields.io/badge/[ТЕКСТ]-[ЦВЕТ_HEX]?style=flat-square)](URL)

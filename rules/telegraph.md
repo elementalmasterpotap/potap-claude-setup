@@ -1,7 +1,7 @@
 # Telegraph — публикация статей
 
 Токен в env: `$TELEGRAPH_TOKEN` (задан в settings.json глобально).
-Аккаунт: `potap` · author_url: https://t.me/potap_attic
+Аккаунт: `potap` · author_url: https://t.me/YOUR_CHANNEL
 
 ---
 
@@ -24,7 +24,7 @@ data = json.dumps({
     "access_token": TOKEN,
     "title": "Заголовок страницы",
     "author_name": "Potap",
-    "author_url": "https://t.me/potap_attic",
+    "author_url": "https://t.me/YOUR_CHANNEL",
     "content": content,
     "return_content": False
 }).encode("utf-8")
@@ -71,7 +71,7 @@ data = json.dumps({
     "path": "page-path-after-telegra-ph",
     "title": "Заголовок",
     "author_name": "Potap",
-    "author_url": "https://t.me/potap_attic",
+    "author_url": "https://t.me/YOUR_CHANNEL",
     "content": content,
     "return_content": False
 }).encode("utf-8")
@@ -85,11 +85,11 @@ result = json.loads(urllib.request.urlopen(req).read())
 print(result["result"]["url"])
 ```
 
-`path` — часть URL после `telegra.ph/` (например `Kak-ya-kastomiziruyu-Claude-03-01`).
+`path` — часть URL после `telegra.ph/` (например `YOUR-TELEGRAPH-PAGE`).
 
 ## Лонгрид про кастомизации — фиксированный файл
 
-Лонгрид: `https://telegra.ph/Kak-ya-kastomiziruyu-Claude-pravila-pamyat-i-moduli-03-01`
+Лонгрид: `https://telegra.ph/YOUR-TELEGRAPH-PAGE`
 Скрипт обновления: `~/.claude/update_telegraph.py`
 
 Правила:

@@ -15,11 +15,48 @@
 **Проблема:** PowerShell показывает `вЂ"` или `??` вместо кириллицы — кажется что данные испорчены.
 **Причина:** консоль Windows работает в cp866/cp1251, данные UTF-8 — визуально мусор, но в памяти и на сервере всё правильно.
 **Правило:** проверять результат через браузер или WebFetch, не доверять консольному выводу кириллицы.
+**Фикс (если нужен читаемый вывод в окне):** два места одновременно:
+```bat
+:: menu.bat — первая строка после @echo off
+chcp 65001 >nul
+```
+```powershell
+# script.ps1 — после $ErrorActionPreference
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001 | Out-Null
+```
+Нужно оба — только bat или только ps1 не даёт результата.
+
+### PS-4 — BAT: скобки и кириллица в echo ломают cmd
+
+**Проблема 1:** `echo текст (в скобках)` → cmd парсит скобки как часть синтаксиса → `'ка)' is not recognized`.
+**Решение:** убрать скобки из echo полностью, или экранировать: `echo текст ^(в скобках^)`.
+**Правило:** в .bat echo — никаких `(` `)` без экранирования `^`.
+
+**Проблема 2:** кириллица в echo без установки кодировки → кракозябры или краш строки.
+**Решение:** либо `chcp 65001` в начале bat файла, либо использовать только ASCII в echo.
+**Правило:** если нужна кириллица в bat — `chcp 65001 >nul` первой строкой. Иначе только ASCII.
 
 ### PS-3 — inline -Command ломается на сложных скриптах
 **Проблема:** длинный скрипт в `powershell.exe -Command "..."` через bash — конфликты кавычек, потеря переносов строк.
 **Решение:** писать в `.ps1` файл, запускать через `powershell.exe -File script.ps1`, удалять после.
 **Правило:** сложнее 2 строк — всегда через файл.
+
+### PS-5 — python -c многострочный через bash ломается аналогично
+**Проблема:** `python -c "import json\n..."` через Bash tool → bash интерпретирует строки Python как shell-команды → `bot.py: command not found`, `using: command not found`.
+**Причина:** bash видит многострочную строку и выполняет каждую строку как shell-команду.
+**Решение:** то же что PS-3 — писать во временный файл, запускать, удалять:
+```python
+# Write temp script
+with open('_tmp.py', 'w') as f:
+    f.write(python_code)
+# Run
+subprocess.run(['python', '_tmp.py'])
+# или через Bash:
+# python _tmp.py && rm _tmp.py
+```
+Или использовать Write tool → Bash `python file.py` → Bash `rm file.py`.
+**Правило:** python -c сложнее 1 строки → всегда через временный файл.
 
 ---
 
@@ -45,6 +82,30 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
 ---
 
 ## Telegram Bot API
+
+### TG-4 — python-telegram-bot v22+: три ловушки
+
+**TG-4a — ChatAction переехал в constants**
+`from telegram import ChatAction` → `ImportError` в v22+.
+**Решение:** `from telegram.constants import ChatAction`
+
+**TG-4b — edit_message_text крашит callback если контент не изменился**
+`BadRequest: Message is not modified` → необработанное исключение роняет весь callback handler.
+**Решение:** оборачивать в try/except:
+```python
+async def _edit(query, text, parse_mode="Markdown", reply_markup=None):
+    try:
+        await query.edit_message_text(text, parse_mode=parse_mode, reply_markup=reply_markup)
+    except Exception as e:
+        if "not modified" not in str(e).lower():
+            raise
+```
+
+**TG-4c — chat_id str vs int**
+Telegram всегда даёт int, но при сохранении в JSON и чтении обратно тип может потеряться.
+**Решение:** всегда `int(chat_id)` при сравнении и записи в persistence-файлы.
+
+---
 
 ### TG-1 — Caption limit 1024 символа (Premium не помогает)
 **Проблема:** фото + подпись через Bot API ограничены 1024 символами, даже если у владельца канала Telegram Premium.
@@ -91,6 +152,23 @@ Invoke-RestMethod "https://api.telegram.org/bot$botToken/sendPhoto" -Method POST
 
 ### GH-3 — Release notes с кириллицей
 Подробно в `rules/github_ops.md` раздел 7. Короткий вывод: сырая JSON-строка с `\uXXXX`, никакого `ConvertTo-Json`.
+
+### GH-4 — Неправильный email в git config → чужой контрибьютор
+**Проблема:** `potap@users.noreply.github.com` → GitHub резолвит на юзера `potap` (чужой аккаунт), не на `YOUR_GITHUB_USERNAME`. В Contributors репо появляется чужое имя.
+**Причина:** локальный `.git/config` репо переопределяет глобальный email неправильным noreply-адресом.
+**Правильный noreply-адрес Потапа:** `YOUR_GITHUB_ID+YOUR_GITHUB_USERNAME@users.noreply.github.com`
+**Диагностика:** `git log --format="%an <%ae>" | sort -u` → если email не `YOUR_GITHUB_USERNAME@gmail.com` и не `YOUR_GITHUB_ID+YOUR_GITHUB_USERNAME@...` → проблема.
+**Фикс существующих коммитов:**
+```bash
+FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --env-filter '
+OLD_EMAIL="potap@users.noreply.github.com"
+NEW_EMAIL="YOUR_GITHUB_ID+YOUR_GITHUB_USERNAME@users.noreply.github.com"
+[ "$GIT_AUTHOR_EMAIL" = "$OLD_EMAIL" ] && export GIT_AUTHOR_EMAIL="$NEW_EMAIL"
+[ "$GIT_COMMITTER_EMAIL" = "$OLD_EMAIL" ] && export GIT_COMMITTER_EMAIL="$NEW_EMAIL"
+' --tag-name-filter cat -- --branches --tags
+git push --force origin main
+```
+**Правило при создании нового репо:** сразу проверить `git config --local user.email` — должен быть пустым (наследует глобальный) или `YOUR_GITHUB_ID+YOUR_GITHUB_USERNAME@users.noreply.github.com`.
 
 ---
 

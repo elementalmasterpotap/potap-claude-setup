@@ -1,9 +1,10 @@
 ---
 name: tg-ref
-description: Telegram Bot API паттерны — отправка, лимиты, медиа. Автоматически подгружается при задачах с Telegram, Bot API, каналом @potap_attic.
+description: Telegram Bot API паттерны — отправка, лимиты, медиа. Автоматически подгружается при задачах с Telegram, Bot API, каналом @YOUR_CHANNEL.
 user-invocable: false
 ---
 
+<!-- Stop hook: tg-check.py (Stop, TG-4a) -->
 ## Лимиты (TG-1)
 
 | Метод | Лимит | Решение при превышении |
@@ -16,7 +17,7 @@ user-invocable: false
 
 ```powershell
 $botToken = $env:TELEGRAM_BOT_TOKEN
-$chatId   = '@potap_attic'
+$chatId   = '@YOUR_CHANNEL'
 
 Invoke-RestMethod "https://api.telegram.org/bot$botToken/sendMessage" -Method POST -Body @{
     chat_id    = $chatId

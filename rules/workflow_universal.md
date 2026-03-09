@@ -66,3 +66,112 @@ Co-Authored-By: Happy <yesreply@happy.engineering>
 - **backup** — эталон, не меняется без явной команды
 
 Команды отката писать в проектном `CLAUDE.md`.
+
+---
+
+## GitHub деплой — универсальный скрипт
+
+**Правило:** всегда использовать `~/.claude/scripts/deploy_github.py`.
+Не писать одноразовый deploy-скрипт в каждом проекте.
+
+### Воркфлоу нового проекта
+
+```
+1. Подготовить deploy.json в корне проекта (из шаблона ниже)
+2. python ~/.claude/scripts/deploy_github.py --config deploy.json
+3. Отправить анонс в Telegram через tg_announce.py
+```
+
+### Шаблон deploy.json
+
+```json
+{
+  "repo":         "repo-name",
+  "description":  "Short description in English",
+  "homepage":     "https://t.me/YOUR_CHANNEL",
+  "topics":       ["python", "windows", "tool"],
+  "tag":          "v1.0.0",
+  "release_name": "v1.0.0",
+  "release_body": "Release notes",
+  "files":        ["bot.py", "README.md", "requirements.txt"],
+  "commit_msg":   "feat: initial release",
+  "branch":       "main"
+}
+```
+
+Скрипт делает: pre-push audit → git init/commit → create repo → push → topics → release.
+Адаптировать `files` и `topics` под проект, остальное стандартное.
+
+### deploy.json → в .gitignore
+
+```
+deploy.json   ← может содержать sensitive info, не пушить
+```
+
+---
+
+## Telegram анонс — правило
+
+**Правило:** Claude ВСЕГДА отправляет посты в @YOUR_CHANNEL сам через скрипт.
+Никогда не выводить текст поста как блок для копирования.
+
+### Два глобальных скрипта:
+
+```
+~/.claude/scripts/tg_post_project.py  ← генерирует пост из post.json + отправляет
+~/.claude/scripts/tg_announce.py      ← отправляет произвольный HTML-текст
+```
+
+### Воркфлоу анонса нового проекта
+
+```
+1. Создать post.json в корне проекта (из шаблона ниже)
+2. python ~/.claude/scripts/tg_post_project.py --config post.json
+   → выведет превью + отправит в @YOUR_CHANNEL
+3. Запомнить message_id если нужно редактировать
+```
+
+### Правило: бот-проект → спросить ссылку на экземпляр
+
+Если проект — бот (Telegram, Discord, любой другой) → **перед оформлением README и поста** спросить:
+
+> "Есть запущенный экземпляр бота? Если да — скинь ссылку (`t.me/...`), добавлю в GitHub и пост."
+
+Ссылка идёт:
+- В README — badge/кнопка под бейджами: `**[▶ Try live — @BotName](https://t.me/BotName)**`
+- В пост — строка перед ссылкой на GitHub: `▶ <a href="...">Попробовать — @BotName</a>`
+- В `post.json` — добавить поле `"bot_link": "https://t.me/BotName"` и шаблон `tg_post_project.py` подставит автоматически
+
+Не ждать пока пользователь скажет сам — спрашивать проактивно.
+
+### Шаблон post.json
+
+```json
+{
+    "emoji":   "🟠",
+    "title":   "Project Name",
+    "tagline": "Одна строка — суть проекта",
+    "body":    "2-3 строки контекста. Что решает, зачем нужно.",
+    "features": [
+        "ключевая фича 1",
+        "ключевая фича 2",
+        "ключевая фича 3"
+    ],
+    "github":  "https://github.com/YOUR_GITHUB_USERNAME/repo",
+    "preview": true
+}
+```
+
+`post.json` → добавить в `.gitignore` (может содержать черновики).
+
+### Когда нужен кастомный пост
+
+Если стандартного шаблона мало (нестандартная структура, медиа, кнопки):
+- Использовать `tg_announce.py --text "..."` напрямую с ручным HTML
+- НЕ переписывать `tg_post_project.py` — он универсальный
+
+### parse_mode: HTML (не Markdown)
+```
+<b>жирный</b>   <i>курсив</i>   <a href="url">ссылка</a>   <code>код</code>
+```
+Markdown ломается на спецсимволах в тексте — HTML надёжнее.

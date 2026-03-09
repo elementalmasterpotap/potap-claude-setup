@@ -4,6 +4,7 @@ description: Показать все накопленные уроки из пр
 allowed-tools: Read
 ---
 
+<!-- Stop hook: multiple (commit-check, ps-unicode-check, csharp-compat-check, tg-check и др.) -->
 Прочитай `~/.claude/rules/lessons_universal.md` и покажи все уроки в виде таблицы:
 
 | ID | Категория | Ловушка | Решение |

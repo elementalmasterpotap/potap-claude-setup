@@ -1,13 +1,19 @@
 # Token Budget — управление Pro лимитом
 
+<!-- Stop hook: НЕВОЗМОЖНО — поведенческие советы/документация; компактинг покрыт precompact-smart.py + session-length-check.py -->
+
 ## Pro тариф — факты
 
 ```
 Окно:      ~44K токенов · ~45 сообщений
 Сброс:     rolling 5 часов от ПЕРВОГО сообщения (не полночь)
 Модели:    Sonnet — основная · Opus — дороже → тратит лимит быстрее
-Мышление:  alwaysThinkingEnabled=true + MAX_THINKING_TOKENS=12000
-           (дефолт был 31 999 → -62% thinking-токенов)
+Мышление:  alwaysThinkingEnabled=true + MAX_THINKING_TOKENS=10000 + DISABLE_ADAPTIVE_THINKING=1
+           (дефолт был 31 999 → -68% thinking-токенов)
+Компакт:   CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=80 (дефолт 95% слишком поздно)
+Субагенты: CLAUDE_CODE_SUBAGENT_MODEL=claude-haiku-4-5-20251001 (все Task() → Haiku)
+MCP:       ENABLE_TOOL_SEARCH=auto:5 (on-demand, не грузить всё)
+→ все переменные в env settings.json
 ```
 
 ## Модельная политика
@@ -81,6 +87,14 @@ Compact триггеры:
 - Сессия > 45 минут активной работы
 - Меняешь задачу/фичу в том же проекте
 - Видишь предупреждение session-length-check.py (каждые 5 длинных ответов)
+- **Claude ошибся 2+ раз подряд по одному вопросу** → /clear + новый промпт конкретнее
+  (длинная сессия с накопленными ошибками хуже чем чистая с точным промптом — официально от Anthropic)
+
+Compact с фокусом эффективнее чем без:
+```
+/compact Focus on code changes and key decisions   ← лучше
+/compact                                            ← хуже (больше мусора)
+```
 
 ## Тактика Pro окон
 
@@ -108,6 +122,7 @@ Skills          → lazy-load: 82% vs всё в CLAUDE.md
 MCP серверы     → только нужные включены · /mcp для toggle
 Субагенты       → verbose ops → субагент, main context чист
 Промпты         → конкретные: "добавь rate limit в auth.ts" не "улучши код"
+Несколько вопросов? → объединить в одно сообщение (каждое сообщение = единица лимита)
 ```
 
 ## Сигналы что тратишь лимит зря

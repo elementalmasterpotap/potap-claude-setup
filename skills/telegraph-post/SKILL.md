@@ -40,7 +40,7 @@ data = json.dumps({
     "path": "page-path-here",        # или убрать для createPage
     "title": "Заголовок",
     "author_name": "Potap",
-    "author_url": "https://t.me/potap_attic",
+    "author_url": "https://t.me/YOUR_CHANNEL",
     "content": content,
     "return_content": False
 }).encode("utf-8")
@@ -54,3 +54,5 @@ print(result["result"]["url"])
 ```
 
 Напиши скрипт для задачи и запусти его. Верни URL страницы.
+
+<!-- Stop hook: telegraph-edit-check.py (Stop) -->

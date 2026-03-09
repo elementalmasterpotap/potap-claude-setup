@@ -8,8 +8,18 @@ allowed-tools: Bash
 Синхронизируй все кастомизации Claude:
 
 ```bash
-python3 ~/.claude/update_telegraph.py
+python -c "
+import json, os, subprocess
+s = json.load(open(os.path.expanduser('~/.claude/settings.json')))
+env = dict(os.environ); env.update(s.get('env', {}))
+r = subprocess.run(['python', os.path.expanduser('~/.claude/update_telegraph.py')], env=env, capture_output=True, text=True, timeout=120)
+print(r.stdout)
+if r.stderr: print(r.stderr)
+"
 ```
+
+> Токены инжектируются из settings.json (TELEGRAPH_TOKEN, GITHUB_TOKEN, TG_BOT_TOKEN).
+> Если таймаут — **включи VPN** (telegra.ph и api.github.com блокируются без него).
 
 ## Что делает скрипт:
 
@@ -17,7 +27,7 @@ python3 ~/.claude/update_telegraph.py
 update_telegraph.py
   ├── editPage    → Telegraph лонгрид (контент + дата обновления)
   ├── git push    → GitHub potap-claude-setup (rules/, CLAUDE.md, scripts/, templates/)
-  └── editMessage → Telegram пост #47 в @potap_attic (дата + ссылки)
+  └── editMessage → Telegram пост #55 в @YOUR_CHANNEL (дата + ссылки)
 ```
 
 После запуска — покажи результат:

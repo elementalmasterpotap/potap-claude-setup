@@ -21,7 +21,10 @@
   ├── Telegraph / статья      ──► telegraph.md
   ├── C# / PowerShell / Windows ──► lessons_universal.md (PS-1..PS-3, CS-1..CS-3)
   ├── PS installer / WinForms тёмная тема ──► windows_dev.md
-  ├── новый проект (старт с нуля) ──► templates/CLAUDE_BASE.md + templates/MEMORY_TEMPLATE.md
+  ├── новый проект (старт с нуля) ──► [БЛОКЕР] сначала создать структуру:
+  │     .claude/CLAUDE.md (по CLAUDE_BASE.md) · .claude/memory/MEMORY.md (по MEMORY_TEMPLATE.md)
+  │     VIBE.md · docs/PATCHNOTES.md · tasks/lessons.md · .claudeignore — ТОЛЬКО ПОТОМ писать код
+  │     ──► добавить секцию ## Haiku в .claude/CLAUDE.md (haiku-setup.md) [ОБЯЗАТЕЛЬНО]
   ├── новый веб-сайт / HTML-страница ──► html+css+js сразу, не монолит (preferences.md §Разбивка)
   ├── правило / память        ──► CLAUDE.md "Новые записи" ──► проверить дубли
   ├── токены / Pro лимит / compact ──► token-budget.md
@@ -47,22 +50,21 @@
   добавлена/удалена/изм. глоб. кастомизация? ДА──► сверить лонгрид с реальным состоянием:
     settings.json (deny/mcpServers/hooks/plugins/alwaysThinking) · rules/ · agents/ · templates/ · skills/
     ──► обновить контент telegraph_content.py ──► синхронизировать через /sync или явный запрос
-    ──► скрипт пушит и в GitHub (github.com/elementalmasterpotap/potap-claude-setup) — только по /sync
+    ──► скрипт пушит и в GitHub (github.com/YOUR_GITHUB_USERNAME/potap-claude-setup) — только по /sync
     Кастомизация = rules/ · scripts/ · agents/ · templates/ · skills/ · settings.json · CLAUDE.md · MEMORY.md
   изменён CLAUDE/MEMORY?   ДА──► синхронизировать копии в проекте
   готово?                  ──► доказать что работает перед отметкой выполненным
 ```
 
 ## Блокировка → не стоп
-1. Паттерн в коде  2. `docs/` / история решений  3. Альтернативный подход
-Действовать, документировать допущения.
+1. Паттерн в коде  2. `docs/` / история решений  3. Альтернативный подход · допущения → в ответ.
 
-## Неоднозначность → допущения
-Допущение в ответе, идти дальше. Спрашивать только при риске потери работы / крит. поломки.
+## Сеть / VPN (Россия)
+Любая сетевая ошибка → **включить VPN, потом повторить** (не ретраить без VPN).
+Блокировки: anthropic.com · npmjs.com · github.com (иногда). Stop hook: `network-vpn-warn.py`.
 
 ## Деплой
-NoPrompt/--yes, без интерактива. Перед "открой и проверь": `powershell -c '$Host.UI.RawUI.WindowSize.Width'`
-≥80 = ПК, <80 = телефон → молча, "протестируй на ПК".
+NoPrompt/--yes · ширина консоли `powershell -c '$Host.UI.RawUI.WindowSize.Width'` ≥80=ПК <80=молча.
 
 ## Permissions
 `src/` `shaders/` `lib/` — свободно · `docs/` `README` — дополнять, не переписывать · `CI` `infra/` `*.yml` — спрашивать · `logo/` `assets/` — не трогать
@@ -85,68 +87,41 @@ grep -rn "ghp_[A-Za-z0-9]\{36\}\|[0-9]\{10\}:AA[A-Za-z0-9_-]\{33\}\|475c06[a-f0-
 Баг-репорт → фиксить автономно, без запроса доп. контекста у пользователя
 
 ## Версии зависимостей — всегда latest/next
-При установке пакетов, инструментов, CLI — всегда последняя версия включая pre-release:
-```
-npm install   → @next (если есть) или @latest
-pip install   → без ==X.Y.Z, или с --pre для pre-release
-Claude Code   → @next через auto-update.sh (SessionStart)
-Плагины       → claude plugin update (SessionStart)
-```
-Фиксированная версия только если явное обоснование совместимости.
-Stop hook enforce: version-check.py · Stop hook НЕВОЗМОЖНО для pip --pre (нет паттерна ловли)
-<!-- Skill: НЕВОЗМОЖНО — knowledge правило, нет invocable action -->
+npm→@next · pip→без ==X.Y.Z · Claude Code→@next (auto-update.sh) · Плагины→claude plugin update
+Фиксировать только при явном обосновании совместимости. Stop hook: version-check.py
 
 ## Предпочтения (визуал / UX)
 Цвет: насыщенные, живые — склоняться к большей насыщенности, не зажимать без причины (артефакт, клиппинг)
 UI: тёмная тема по умолчанию для Windows приложений · псевдографика ВЕЗДЕ как дефолт (Stop hook enforce)
 Документация: неформально, мат ок, от первого лица — не корпоративно
 
-## Аудит правил
-"Без него крит-ошибка?" · Не удалять → универсальная формулировка · <150 строк, детали в .claude/rules/
-
 ## Новые записи (правила и память) — воркфлоу
-Перед записью:
-1. Прочитать целевой файл
-2. Прочитать смежные по карте ниже — найти совпадения
-3. Смысл уже есть → ссылка; нет → писать сжато (без воды, `·` вместо списков где нет иерархии)
-4. После: изменён `CLAUDE.md` или `MEMORY.md` → синхронизировать копии в проекте
+Читать цель → читать смежные (карта ниже) → дубль? ссылка : писать сжато
+После изменения `CLAUDE.md` / `MEMORY.md` → синхронизировать копии в проекте
 
-## Новое правило → обязательный комплект
-Каждое новое правило требует трёх артефактов:
+## Новое правило → обязательный комплект [БЛОКЕР]
+Каждое новое правило требует ТРЁХ артефактов. Без хука — правило не считается созданным:
 ```
 правило (rules/*.md или CLAUDE.md)
-  ├── Stop hook (scripts/*.py)  — можно автоматизировать? → создать
-  │   НЕВОЗМОЖНО?              → зафиксировать почему в комментарии правила
-  └── Skill (skills/*/SKILL.md) — action (disable-model-invocation) или knowledge (user-invocable: false)
-      НЕВОЗМОЖНО?              → зафиксировать почему
+  ├── Stop/PreToolUse/PostToolUse/UPS хук (scripts/*.py)
+  │   ОБЯЗАТЕЛЬНО — создать хук и зарегистрировать в settings.json
+  │   Нет машинного паттерна? → Stop хук на текст ответа (last_assistant_message)
+  │   Нет вообще варианта?   → написать в комментарии ПОЧЕМУ + предложить альтернативу
+  │   НЕВОЗМОЖНО без причины — не принимается
+  └── Skill (skills/*/SKILL.md) — action или knowledge (user-invocable: false)
+      Нет ручного invoke? → user-invocable: false (knowledge скилл)
 ```
+Порядок создания: 1) правило → 2) скрипт хука → 3) settings.json → 4) skill
 После: синхронизировать через `/sync` скилл (Telegraph + GitHub + Telegram за один запуск).
 
 Карта правил:
-- стиль/тон/мемы/отсылки → `communication.md`
-- характер Потапа, правила правил, синхронизация → `MEMORY.md`
-- workflow/permissions/деплой/commits/принципы → `CLAUDE.md` глобальный
-- деплой/патчнот (универсально) → `workflow_universal.md`
-- деплой шейдера, патчноты → `workflow.md` (проектный)
-- GitHub API, релизы, ассеты, кодировки → `github_ops.md`
-- GitHub оформление, README, бейджи, чеклист → `github_formatting.md`
-- Telegram бот, посты, лимиты → `lessons_universal.md` (TG-раздел)
-- Telegraph публикация статей → `telegraph.md`
-- PowerShell/Windows/C# ловушки → `lessons_universal.md` (PS/CS-разделы)
-- PS installer паттерн, C# WinForms тёмная тема → `windows_dev.md`
-- вайбкодинг (универсально) → `vibe_coding.md`
-- шаблоны (CLAUDE.md/MEMORY/PATCHNOTES/VIBE/Telegram) → `templates/`
-- hookify блокировки/предупреждения → `.claude/hookify.*.local.md` · глобальные шаблоны → `templates/hookify/`
-- скиллы / slash-команды → `~/.claude/skills/<name>/SKILL.md` (action: disable-model-invocation, knowledge: user-invocable: false)
-- HLSL-специфика, константы, антипаттерны → `hlsl.md`
-- Haiku routing, ультимативный пак, экономия → `haiku-economy.md`
-- субагент контекст, когда передавать/не передавать → `subagent-context.md`
-- GitHub двуязычность (EN/RU README, шаблоны) → `bilingual.md`
-- структура файлов, цвет → `preferences.md`
-- детектор, активный шейдер, метафоры проекта → проектный `CLAUDE.md`
+`communication.md` стиль/тон · `MEMORY.md` характер/паттерны · `workflow_universal.md` деплой/патчнот
+`github_ops.md` API · `github_formatting.md` README/бейджи · `bilingual.md` EN+RU
+`lessons_universal.md` TG/PS/CS ловушки · `windows_dev.md` installer/WinForms · `telegraph.md` статьи
+`haiku-economy.md` токены/модели · `haiku-setup.md` новый проект+Haiku · `plan-mode.md` Plan Mode
+`subagent-context.md` субагенты · `hlsl.md` шейдеры · `preferences.md` структура/цвет
+`vibe_coding.md` вайбкод · `templates/` шаблоны · `templates/hookify/` hookify-шаблоны
+скиллы → `~/.claude/skills/<name>/SKILL.md` · проектное → `.claude/CLAUDE.md`
 
-Карта памяти (что писать в `MEMORY.md`):
-- уникальные паттерны/характер Потапа (не стиль/тон — он в `communication.md`)
-- долгосрочные факты из практики: решения, поломки, инсайты
-- новые мемы и локальные отсылки
-- НЕ писать: стиль/тон → `communication.md` · workflow/деплой/commits → `CLAUDE.md`
+Карта памяти (`MEMORY.md`): паттерны Потапа · практические инсайты · мемы
+НЕ писать: стиль/тон → `communication.md` · workflow → `CLAUDE.md`

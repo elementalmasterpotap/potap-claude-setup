@@ -85,7 +85,7 @@ Topics — на английском, строчные, дефисы:
 [![](https://img.shields.io/badge/v1.0.0-0099CC?style=flat-square)](https://github.com/USER/REPO/releases)
 [![](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/USER/REPO)
 [![](https://img.shields.io/badge/license-MIT-22AA44?style=flat-square)](LICENSE)
-[![](https://img.shields.io/badge/Telegram-channel-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/potap_attic)
+[![](https://img.shields.io/badge/Telegram-channel-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/YOUR_CHANNEL)
 
 </div>
 ```

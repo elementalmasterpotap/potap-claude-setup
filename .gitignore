@@ -3,8 +3,17 @@
 *.token
 .telegraph_token
 settings.json
+settings.json.bak
 settings.local.json
 .tg_post_id
+.credentials.json
+
+# Sanitize script (personal, not for sharing)
+_sanitize.py
+
+# Telegraph sync (removed from this repo)
+telegraph_content.py
+update_telegraph.py
 
 # Claude runtime (personal data — never commit)
 memory/
@@ -16,12 +25,16 @@ shell-snapshots/
 telemetry/
 cache/
 plans/
+tasks/
 todos/
 debug/
 downloads/
 paste-cache/
 file-history/
 backups/
+backup-toolkit/
+SESSION.md
+plugins/
 
 # Python
 __pycache__/
